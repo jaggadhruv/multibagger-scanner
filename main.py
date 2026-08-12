@@ -114,7 +114,7 @@ def main():
         scored_df=scored,
         universe_size=len(tickers),
         fetched_size=len(fetched),
-        output_path=output_dir / "report.html",
+        output_path=output_dir / "index.html",
         top_n=args.top,
     )
     print(f"\nDone. Open in browser:\n  file://{report_path.resolve()}")
