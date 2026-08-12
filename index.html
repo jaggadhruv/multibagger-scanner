@@ -9,20 +9,15 @@
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <style>
   :root {
-    --bg: #fafbfc;
-    --card: #ffffff;
-    --border: #e1e4e8;
-    --text: #24292e;
-    --muted: #6a737d;
-    --accent: #0366d6;
-    --good: #22863a;
-    --warn: #b08800;
+    --bg: #fafbfc; --card: #ffffff; --border: #e1e4e8;
+    --text: #24292e; --muted: #6a737d; --accent: #0366d6;
+    --good: #22863a; --warn: #b08800; --bad: #cb2431;
   }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg); color: var(--text);
-    margin: 0 auto; padding: 24px; max-width: 1700px;
+    margin: 0 auto; padding: 24px; max-width: 1900px;
   }
   header { margin-bottom: 24px; }
   h1 { margin: 0 0 4px; font-size: 24px; }
@@ -40,6 +35,7 @@
   .criteria {
     background: var(--card); border: 1px solid var(--border);
     border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px;
+    line-height: 1.6;
   }
   .criteria strong { color: var(--accent); }
   table.dataTable {
@@ -55,21 +51,33 @@
   .rank { font-weight: 600; color: var(--muted); text-align: center; }
   .ticker a { color: var(--accent); text-decoration: none; font-weight: 600; }
   .ticker a:hover { text-decoration: underline; }
-  .rationale { font-size: 12px; color: #444; max-width: 380px; line-height: 1.4; }
+  .rationale { font-size: 12px; color: #444; max-width: 340px; line-height: 1.4; }
   .pos { color: var(--good); }
-  .neg { color: #cb2431; }
+  .neg { color: var(--bad); }
 
-  /* Multibagger Score badge */
-  .mb-score {
+  .score-badge {
     display: inline-block; min-width: 40px; padding: 4px 8px;
     border-radius: 12px; font-weight: 700; font-size: 13px;
     text-align: center; color: white;
   }
-  .mb-elite { background: #22863a; }   /* 9.0 - 10.0 */
-  .mb-strong { background: #2f9e5c; }  /* 8.0 - 8.9 */
-  .mb-good { background: #7cb342; color: #1a3d0a; }  /* 7.0 - 7.9 */
-  .mb-fair { background: #f0c040; color: #4a3800; }  /* 6.0 - 6.9 */
-  .mb-marginal { background: #e0a040; color: #4a2800; }  /* 5.0 - 5.9 */
+  .mb-elite    { background: #22863a; }
+  .mb-strong   { background: #2f9e5c; }
+  .mb-good     { background: #7cb342; color: #1a3d0a; }
+  .mb-fair     { background: #f0c040; color: #4a3800; }
+  .mb-marginal { background: #e0a040; color: #4a2800; }
+  .tech-great  { background: #22863a; }
+  .tech-good   { background: #7cb342; color: #1a3d0a; }
+  .tech-neutral{ background: #f0c040; color: #4a3800; }
+  .tech-weak   { background: #e0a040; color: #4a2800; }
+  .tech-bad    { background: var(--bad); }
+
+  .signal {
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-weight: 700; font-size: 12px; letter-spacing: 0.5px;
+  }
+  .signal-buy  { background: #d4edda; color: #155724; border: 1px solid #22863a; }
+  .signal-sell { background: #f8d7da; color: #721c24; border: 1px solid var(--bad); }
+  .signal-days { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; font-weight: 400; }
 
   footer {
     margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
@@ -84,25 +92,21 @@
 <body>
 <header>
   <h1>US Multibagger Candidate Screener</h1>
-  <div class="meta">Generated 2026-08-12 12:46 UTC · Data via Yahoo Finance (yfinance)</div>
+  <div class="meta">Generated 2026-08-12 16:31 UTC · Data via Yahoo Finance (yfinance)</div>
 </header>
 
 <div class="cards">
   <div class="card"><div class="label">Universe scanned</div><div class="value">1,003</div></div>
-  <div class="card"><div class="label">Data fetched</div><div class="value">828</div></div>
-  <div class="card"><div class="label">Passed filters</div><div class="value">41</div></div>
-  <div class="card"><div class="label">Shown in table</div><div class="value">41</div></div>
+  <div class="card"><div class="label">Data fetched</div><div class="value">823</div></div>
+  <div class="card"><div class="label">Passed filters</div><div class="value">57</div></div>
+  <div class="card"><div class="label">Shown in table</div><div class="value">50</div></div>
 </div>
 
 <div class="criteria">
-<strong>Hard filters</strong>: Market cap $2B–$10B · ROE ≥12% · Op margin ≥8% · Gross margin ≥20% · Revenue growth ≥10% · D/E ≤1.5 · Current ratio ≥1.2 · Positive FCF<br>
-<strong>Multibagger Score (0-10)</strong>: Weighted composite of Quality (30%) + Health (25%) + Growth (25%) + Valuation (15%) + Momentum (5%). Financial strength (Quality + Health = 55%) dominates. Score is percentile-ranked within the filtered pool: 10 = best passer, 5 = weakest passer.<br>
-<strong>Score bands</strong>:
-<span class="mb-score mb-elite" style="padding:2px 6px;font-size:11px">9.0+</span> Elite ·
-<span class="mb-score mb-strong" style="padding:2px 6px;font-size:11px">8.0-8.9</span> Strong ·
-<span class="mb-score mb-good" style="padding:2px 6px;font-size:11px">7.0-7.9</span> Good ·
-<span class="mb-score mb-fair" style="padding:2px 6px;font-size:11px">6.0-6.9</span> Fair ·
-<span class="mb-score mb-marginal" style="padding:2px 6px;font-size:11px">5.0-5.9</span> Marginal
+<strong>Hard filters</strong>: Market cap $1B–$15B · ROE ≥12% · Op margin ≥8% · Gross margin ≥20% · Revenue growth ≥10% · D/E ≤1.5 · Current ratio ≥1.2 · Positive FCF<br>
+<strong>Multibagger Score (0-10, fundamental)</strong>: Quality (30%) + Health (25%) + Growth (25%) + Valuation (15%) + Momentum (5%). Financial strength (Quality + Health = 55%) dominates.<br>
+<strong>Technical Score (0-10, entry-timing)</strong>: RSI in 40-60 sweet spot (+2), 5-20% above 200-day MA (+1.5), 10-25% pullback from 52w high (+1.5). Overextended prices are penalised.<br>
+<strong>Supertrend (period=10, mult=3.0)</strong>: <span class="signal signal-buy">BUY</span> = price above trend line; <span class="signal signal-sell">SELL</span> = price below. Days count shows how long the current signal has held.
 </div>
 
 <table class="dataframe display compact" id="results">
@@ -113,15 +117,16 @@
       <th>Name</th>
       <th>Sector</th>
       <th>Mkt Cap</th>
-      <th>Score /10</th>
-      <th>Rationale</th>
+      <th>MB /10</th>
+      <th>Tech /10</th>
+      <th>Supertrend</th>
+      <th>RSI</th>
+      <th>vs 200MA</th>
+      <th>vs 52wHigh</th>
       <th>ROE</th>
-      <th>Op Margin</th>
-      <th>Gross Margin</th>
       <th>Rev Growth</th>
-      <th>D/E</th>
-      <th>P/E</th>
       <th>PEG</th>
+      <th>Rationale</th>
     </tr>
   </thead>
   <tbody>
@@ -130,663 +135,857 @@
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/INSW" target="_blank" rel="noopener">INSW</a></span></td>
       <td>International Seaways, Inc.</td>
       <td>Energy</td>
-      <td>$4.41B</td>
-      <td><span class="mb-score mb-elite" data-order="10.0">10.0</span></td>
-      <td>Solid growth (revenue +140%, EPS +373%); strong profitability (ROE 37%, op margin 64%). Valuation looks stretched.</td>
-      <td><span class="pos">37.4%</span></td>
-      <td><span class="pos">64.2%</span></td>
-      <td><span class="pos">72.5%</span></td>
-      <td><span class="pos">140.1%</span></td>
-      <td>0.29</td>
-      <td>5.69</td>
+      <td>$4.52B</td>
+      <td><span class="score-badge mb-elite" data-order="10.0">10.0</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">37.4%</span></td>
+      <td><span class="pos">140.1%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +140%, EPS +373%); strong profitability (ROE 37%, op margin 64%). Recent price action is soft.</td>
     </tr>
     <tr>
       <td>2</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/SEZL" target="_blank" rel="noopener">SEZL</a></span></td>
-      <td>Sezzle Inc.</td>
-      <td>Financial Services</td>
-      <td>$4.32B</td>
-      <td><span class="mb-score mb-elite" data-order="9.9">9.9</span></td>
-      <td>Strong profitability (ROE 89%, op margin 57%); solid growth (revenue +52%, EPS +50%). Recent price action is soft.</td>
-      <td><span class="pos">88.9%</span></td>
-      <td><span class="pos">57.2%</span></td>
-      <td><span class="pos">75.0%</span></td>
-      <td><span class="pos">51.7%</span></td>
-      <td>0.52</td>
-      <td>28.07</td>
-      <td>0.09</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/HL" target="_blank" rel="noopener">HL</a></span></td>
+      <td>Hecla Mining Company</td>
+      <td>Basic Materials</td>
+      <td>$12.12B</td>
+      <td><span class="score-badge mb-elite" data-order="9.9">9.9</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">22.2%</span></td>
+      <td><span class="pos">52.4%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +52%, EPS +93%); healthy balance sheet (D/E 0.01, CR 5.2). Recent price action is soft.</td>
     </tr>
     <tr>
       <td>3</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/MGY" target="_blank" rel="noopener">MGY</a></span></td>
       <td>Magnolia Oil & Gas Corporation</td>
       <td>Energy</td>
-      <td>$6.31B</td>
-      <td><span class="mb-score mb-elite" data-order="9.8">9.8</span></td>
-      <td>Solid growth (revenue +50%, EPS +137%); strong profitability (ROE 21%, op margin 51%). Recent price action is soft.</td>
-      <td><span class="pos">20.9%</span></td>
-      <td><span class="pos">50.7%</span></td>
-      <td><span class="pos">82.2%</span></td>
-      <td><span class="pos">50.1%</span></td>
-      <td>0.19</td>
-      <td>11.36</td>
+      <td>$6.39B</td>
+      <td><span class="score-badge mb-elite" data-order="9.8">9.8</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">20.9%</span></td>
+      <td><span class="pos">50.1%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +50%, EPS +137%); strong profitability (ROE 21%, op margin 51%). Recent price action is soft.</td>
     </tr>
     <tr>
       <td>4</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/HLNE" target="_blank" rel="noopener">HLNE</a></span></td>
-      <td>Hamilton Lane Incorporated</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/SEZL" target="_blank" rel="noopener">SEZL</a></span></td>
+      <td>Sezzle Inc.</td>
       <td>Financial Services</td>
-      <td>$7.02B</td>
-      <td><span class="mb-score mb-elite" data-order="9.6">9.6</span></td>
-      <td>Strong profitability (ROE 32%, op margin 46%); solid growth (revenue +56%, EPS +50%). Recent price action is soft.</td>
-      <td><span class="pos">32.4%</span></td>
-      <td><span class="pos">45.9%</span></td>
-      <td><span class="pos">60.7%</span></td>
-      <td><span class="pos">56.5%</span></td>
-      <td>0.22</td>
-      <td>15.96</td>
+      <td>$4.19B</td>
+      <td><span class="score-badge mb-elite" data-order="9.7">9.7</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">88.9%</span></td>
+      <td><span class="pos">51.7%</span></td>
+      <td>0.09</td>
+      <td>Strong profitability (ROE 89%, op margin 57%); solid growth (revenue +52%, EPS +50%). Recent price action is soft.</td>
     </tr>
     <tr>
       <td>5</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/LGND" target="_blank" rel="noopener">LGND</a></span></td>
-      <td>Ligand Pharmaceuticals Incorpor</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/EXEL" target="_blank" rel="noopener">EXEL</a></span></td>
+      <td>Exelixis, Inc.</td>
       <td>Healthcare</td>
-      <td>$5.76B</td>
-      <td><span class="mb-score mb-elite" data-order="9.5">9.5</span></td>
-      <td>Solid growth (revenue +34%, EPS +825%); healthy balance sheet (D/E 1.17, CR 31.2). Valuation looks stretched.</td>
-      <td><span class="pos">22.0%</span></td>
-      <td><span class="pos">13.5%</span></td>
-      <td><span class="pos">81.2%</span></td>
-      <td><span class="pos">33.7%</span></td>
-      <td>1.17</td>
-      <td>29.74</td>
+      <td>$12.73B</td>
+      <td><span class="score-badge mb-elite" data-order="9.6">9.6</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">44.4%</span></td>
+      <td><span class="pos">10.6%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 44%, op margin 40%); healthy balance sheet (D/E 0.09, CR 3.5). Growth is modest — more of a compounder.</td>
     </tr>
     <tr>
       <td>6</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/INVA" target="_blank" rel="noopener">INVA</a></span></td>
+      <td>Innoviva, Inc.</td>
+      <td>Healthcare</td>
+      <td>$1.51B</td>
+      <td><span class="score-badge mb-elite" data-order="9.6">9.6</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">36.7%</span></td>
+      <td><span class="pos">19.3%</span></td>
+      <td>0.30</td>
+      <td>Strong profitability (ROE 37%, op margin 43%); healthy balance sheet (D/E 0.27, CR 16.0). Recent price action is soft.</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/AMG" target="_blank" rel="noopener">AMG</a></span></td>
+      <td>Affiliated Managers Group, Inc.</td>
+      <td>Financial Services</td>
+      <td>$9.62B</td>
+      <td><span class="score-badge mb-elite" data-order="9.5">9.5</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">24.3%</span></td>
+      <td><span class="pos">29.9%</span></td>
+      <td>0.90</td>
+      <td>Solid growth (revenue +30%, EPS +148%); healthy balance sheet (D/E 0.76, CR 101.3). Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/HLNE" target="_blank" rel="noopener">HLNE</a></span></td>
+      <td>Hamilton Lane Incorporated</td>
+      <td>Financial Services</td>
+      <td>$6.90B</td>
+      <td><span class="score-badge mb-elite" data-order="9.4">9.4</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">32.4%</span></td>
+      <td><span class="pos">56.5%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 32%, op margin 46%); solid growth (revenue +56%, EPS +50%). Recent price action is soft.</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/LGND" target="_blank" rel="noopener">LGND</a></span></td>
+      <td>Ligand Pharmaceuticals Incorpor</td>
+      <td>Healthcare</td>
+      <td>$5.85B</td>
+      <td><span class="score-badge mb-elite" data-order="9.3">9.3</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">22.0%</span></td>
+      <td><span class="pos">33.7%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +34%, EPS +825%); strong profitability (ROE 22%, op margin 13%). Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/KRYS" target="_blank" rel="noopener">KRYS</a></span></td>
+      <td>Krystal Biotech, Inc.</td>
+      <td>Healthcare</td>
+      <td>$9.84B</td>
+      <td><span class="score-badge mb-elite" data-order="9.2">9.2</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">20.1%</span></td>
+      <td><span class="pos">24.1%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 20%, op margin 49%); healthy balance sheet (D/E 0.01, CR 8.3). Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>11</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/HRMY" target="_blank" rel="noopener">HRMY</a></span></td>
       <td>Harmony Biosciences Holdings, I</td>
       <td>Healthcare</td>
       <td>$2.30B</td>
-      <td><span class="mb-score mb-elite" data-order="9.4">9.4</span></td>
-      <td>Constructive price momentum; solid growth (revenue +30%, EPS +88%). Profitability is the softer spot.</td>
+      <td><span class="score-badge mb-elite" data-order="9.1">9.1</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
       <td><span class="pos">20.5%</span></td>
-      <td><span class="pos">34.2%</span></td>
-      <td><span class="pos">75.4%</span></td>
       <td><span class="pos">30.3%</span></td>
-      <td>0.16</td>
-      <td>12.79</td>
       <td>—</td>
+      <td>Solid growth (revenue +30%, EPS +88%); reasonable valuation (P/E 13). Balance sheet worth monitoring.</td>
     </tr>
     <tr>
-      <td>7</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/KRYS" target="_blank" rel="noopener">KRYS</a></span></td>
-      <td>Krystal Biotech, Inc.</td>
-      <td>Healthcare</td>
-      <td>$9.68B</td>
-      <td><span class="mb-score mb-elite" data-order="9.2">9.2</span></td>
-      <td>Healthy balance sheet (D/E 0.01, CR 8.3); strong profitability (ROE 20%, op margin 49%). Valuation looks stretched.</td>
-      <td><span class="pos">20.1%</span></td>
-      <td><span class="pos">49.0%</span></td>
-      <td><span class="pos">94.6%</span></td>
-      <td><span class="pos">24.1%</span></td>
-      <td>0.01</td>
-      <td>40.98</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>8</td>
+      <td>12</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/CARG" target="_blank" rel="noopener">CARG</a></span></td>
       <td>CarGurus, Inc.</td>
       <td>Consumer Cyclical</td>
-      <td>$3.22B</td>
-      <td><span class="mb-score mb-elite" data-order="9.1">9.1</span></td>
-      <td>Strong profitability (ROE 53%, op margin 25%); solid growth (revenue +13%, EPS +141%). Balance sheet worth monitoring.</td>
+      <td>$3.24B</td>
+      <td><span class="score-badge mb-elite" data-order="9.0">9.0</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
       <td><span class="pos">53.5%</span></td>
-      <td><span class="pos">25.3%</span></td>
-      <td><span class="pos">92.4%</span></td>
       <td><span class="pos">13.1%</span></td>
-      <td>0.70</td>
-      <td>19.35</td>
       <td>1.14</td>
+      <td>Strong profitability (ROE 53%, op margin 25%); solid growth (revenue +13%, EPS +141%). Balance sheet worth monitoring.</td>
     </tr>
     <tr>
-      <td>9</td>
+      <td>13</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/PARR" target="_blank" rel="noopener">PARR</a></span></td>
       <td>Par Pacific Holdings, Inc. Comm</td>
       <td>Energy</td>
-      <td>$3.78B</td>
-      <td><span class="mb-score mb-elite" data-order="9.0">9.0</span></td>
-      <td>Solid growth (revenue +57%, EPS +699%); reasonable valuation (P/E 4). Balance sheet worth monitoring.</td>
-      <td><span class="pos">53.5%</span></td>
-      <td><span class="pos">21.1%</span></td>
-      <td><span class="pos">23.1%</span></td>
-      <td><span class="pos">56.8%</span></td>
-      <td>0.56</td>
-      <td>4.43</td>
+      <td>$3.76B</td>
+      <td><span class="score-badge mb-strong" data-order="8.9">8.9</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">53.5%</span></td>
+      <td><span class="pos">56.8%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +57%, EPS +699%); reasonable valuation (P/E 4). Balance sheet worth monitoring.</td>
     </tr>
     <tr>
-      <td>10</td>
+      <td>14</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/ESNT" target="_blank" rel="noopener">ESNT</a></span></td>
       <td>Essent Group Ltd.</td>
       <td>Financial Services</td>
-      <td>$6.08B</td>
-      <td><span class="mb-score mb-strong" data-order="8.9">8.9</span></td>
-      <td>Strong profitability (ROE 12%, op margin 67%); constructive price momentum. Growth is modest — more of a compounder.</td>
-      <td><span class="pos">12.0%</span></td>
-      <td><span class="pos">66.9%</span></td>
-      <td><span class="pos">77.2%</span></td>
-      <td><span class="pos">13.6%</span></td>
-      <td>0.09</td>
-      <td>9.43</td>
+      <td>$6.17B</td>
+      <td><span class="score-badge mb-strong" data-order="8.8">8.8</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">12.0%</span></td>
+      <td><span class="pos">13.6%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 12%, op margin 67%); constructive price momentum. Growth is modest — more of a compounder.</td>
     </tr>
     <tr>
-      <td>11</td>
+      <td>15</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/CNS" target="_blank" rel="noopener">CNS</a></span></td>
+      <td>Cohen & Steers Inc</td>
+      <td>Financial Services</td>
+      <td>$4.40B</td>
+      <td><span class="score-badge mb-strong" data-order="8.8">8.8</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">27.3%</span></td>
+      <td><span class="pos">12.2%</span></td>
+      <td>2.06</td>
+      <td>Healthy balance sheet (D/E 0.19, CR 6.6); strong profitability (ROE 27%, op margin 35%). Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>16</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/SEIC" target="_blank" rel="noopener">SEIC</a></span></td>
+      <td>SEI Investments Company</td>
+      <td>Financial Services</td>
+      <td>$12.56B</td>
+      <td><span class="score-badge mb-strong" data-order="8.7">8.7</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">27.6%</span></td>
+      <td><span class="pos">14.7%</span></td>
+      <td>2.02</td>
+      <td>Healthy balance sheet (D/E 0.02, CR 5.1); strong profitability (ROE 28%, op margin 31%). Growth is modest — more of a compounder.</td>
+    </tr>
+    <tr>
+      <td>17</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/CRUS" target="_blank" rel="noopener">CRUS</a></span></td>
       <td>Cirrus Logic, Inc.</td>
       <td>Technology</td>
       <td>$6.11B</td>
-      <td><span class="mb-score mb-strong" data-order="8.8">8.8</span></td>
-      <td>Healthy balance sheet (D/E 0.06, CR 7.6); reasonable valuation (P/E 15). Recent price action is soft.</td>
+      <td><span class="score-badge mb-strong" data-order="8.6">8.6</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
       <td><span class="pos">20.9%</span></td>
-      <td><span class="pos">18.4%</span></td>
-      <td><span class="pos">52.8%</span></td>
       <td><span class="pos">12.9%</span></td>
-      <td>0.06</td>
-      <td>14.91</td>
       <td>—</td>
-    </tr>
-    <tr>
-      <td>12</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/CNS" target="_blank" rel="noopener">CNS</a></span></td>
-      <td>Cohen & Steers Inc</td>
-      <td>Financial Services</td>
-      <td>$4.34B</td>
-      <td><span class="mb-score mb-strong" data-order="8.6">8.6</span></td>
-      <td>Healthy balance sheet (D/E 0.19, CR 6.6); constructive price momentum. Valuation looks stretched.</td>
-      <td><span class="pos">27.3%</span></td>
-      <td><span class="pos">34.6%</span></td>
-      <td><span class="pos">47.3%</span></td>
-      <td><span class="pos">12.2%</span></td>
-      <td>0.19</td>
-      <td>25.94</td>
-      <td>2.06</td>
-    </tr>
-    <tr>
-      <td>13</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/RELY" target="_blank" rel="noopener">RELY</a></span></td>
-      <td>Remitly Global, Inc.</td>
-      <td>Technology</td>
-      <td>$4.97B</td>
-      <td><span class="mb-score mb-strong" data-order="8.5">8.5</span></td>
-      <td>Solid growth (revenue +20%, EPS +3000%); healthy balance sheet (D/E 0.03, CR 3.2). Profitability is the softer spot.</td>
-      <td><span class="pos">32.2%</span></td>
-      <td><span class="pos">14.3%</span></td>
-      <td><span class="pos">61.5%</span></td>
-      <td><span class="pos">20.2%</span></td>
-      <td>0.03</td>
-      <td>16.99</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>14</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/COCO" target="_blank" rel="noopener">COCO</a></span></td>
-      <td>The Vita Coco Company, Inc.</td>
-      <td>Consumer Defensive</td>
-      <td>$3.73B</td>
-      <td><span class="mb-score mb-strong" data-order="8.4">8.4</span></td>
-      <td>Solid growth (revenue +28%, EPS +116%); healthy balance sheet (D/E 0.04, CR 3.4). Valuation looks stretched.</td>
-      <td><span class="pos">31.4%</span></td>
-      <td><span class="pos">29.2%</span></td>
-      <td><span class="pos">41.1%</span></td>
-      <td><span class="pos">28.1%</span></td>
-      <td>0.04</td>
-      <td>35.61</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>15</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/FHI" target="_blank" rel="noopener">FHI</a></span></td>
-      <td>Federated Hermes, Inc.</td>
-      <td>Financial Services</td>
-      <td>$4.70B</td>
-      <td><span class="mb-score mb-strong" data-order="8.2">8.2</span></td>
-      <td>Constructive price momentum; healthy balance sheet (D/E 0.32, CR 2.6). Growth is modest — more of a compounder.</td>
-      <td><span class="pos">31.1%</span></td>
-      <td><span class="pos">27.7%</span></td>
-      <td><span class="pos">69.0%</span></td>
-      <td><span class="pos">18.3%</span></td>
-      <td>0.32</td>
-      <td>11.71</td>
-      <td>2.48</td>
-    </tr>
-    <tr>
-      <td>16</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/DAVE" target="_blank" rel="noopener">DAVE</a></span></td>
-      <td>Dave Inc.</td>
-      <td>Technology</td>
-      <td>$3.95B</td>
-      <td><span class="mb-score mb-strong" data-order="8.1">8.1</span></td>
-      <td>Strong profitability (ROE 105%, op margin 33%); reasonable valuation (P/E 20). Growth is modest — more of a compounder.</td>
-      <td><span class="pos">104.8%</span></td>
-      <td><span class="pos">32.9%</span></td>
-      <td><span class="pos">71.7%</span></td>
-      <td><span class="pos">29.6%</span></td>
-      <td>1.29</td>
-      <td>19.88</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>17</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/RDN" target="_blank" rel="noopener">RDN</a></span></td>
-      <td>Radian Group Inc.</td>
-      <td>Financial Services</td>
-      <td>$4.86B</td>
-      <td><span class="mb-score mb-strong" data-order="8.0">8.0</span></td>
-      <td>Reasonable valuation (P/E 9); strong profitability (ROE 12%, op margin 32%). Recent price action is soft.</td>
-      <td><span class="pos">12.0%</span></td>
-      <td><span class="pos">31.6%</span></td>
-      <td><span class="pos">69.3%</span></td>
-      <td><span class="pos">93.5%</span></td>
-      <td>0.28</td>
-      <td>8.98</td>
-      <td>—</td>
+      <td>Healthy balance sheet (D/E 0.06, CR 7.6); reasonable valuation (P/E 15). Recent price action is soft.</td>
     </tr>
     <tr>
       <td>18</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/ADEA" target="_blank" rel="noopener">ADEA</a></span></td>
-      <td>Adeia Inc.</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/RELY" target="_blank" rel="noopener">RELY</a></span></td>
+      <td>Remitly Global, Inc.</td>
       <td>Technology</td>
-      <td>$3.06B</td>
-      <td><span class="mb-score mb-good" data-order="7.9">7.9</span></td>
-      <td>Strong profitability (ROE 28%, op margin 32%); constructive price momentum. Growth is modest — more of a compounder.</td>
-      <td><span class="pos">27.9%</span></td>
-      <td><span class="pos">31.9%</span></td>
-      <td><span class="pos">100.0%</span></td>
-      <td><span class="pos">12.1%</span></td>
-      <td>0.83</td>
-      <td>25.43</td>
+      <td>$5.00B</td>
+      <td><span class="score-badge mb-strong" data-order="8.5">8.5</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">32.2%</span></td>
+      <td><span class="pos">20.2%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +20%, EPS +3000%); healthy balance sheet (D/E 0.03, CR 3.2). Profitability is the softer spot.</td>
     </tr>
     <tr>
       <td>19</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/AGX" target="_blank" rel="noopener">AGX</a></span></td>
-      <td>Argan, Inc.</td>
-      <td>Industrials</td>
-      <td>$8.11B</td>
-      <td><span class="mb-score mb-good" data-order="7.8">7.8</span></td>
-      <td>Solid growth (revenue +50%, EPS +102%); healthy balance sheet (D/E 0.02, CR 1.5). Valuation looks stretched.</td>
-      <td><span class="pos">38.5%</span></td>
-      <td><span class="pos">15.6%</span></td>
-      <td><span class="pos">20.7%</span></td>
-      <td><span class="pos">50.2%</span></td>
-      <td>0.02</td>
-      <td>50.75</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/RMBS" target="_blank" rel="noopener">RMBS</a></span></td>
+      <td>Rambus, Inc.</td>
+      <td>Technology</td>
+      <td>$11.00B</td>
+      <td><span class="score-badge mb-strong" data-order="8.4">8.4</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">17.8%</span></td>
+      <td><span class="pos">20.4%</span></td>
+      <td>—</td>
+      <td>Healthy balance sheet (D/E 0.01, CR 9.8); strong profitability (ROE 18%, op margin 37%). Valuation looks stretched.</td>
     </tr>
     <tr>
       <td>20</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/FCFS" target="_blank" rel="noopener">FCFS</a></span></td>
-      <td>FirstCash Holdings, Inc.</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/FHI" target="_blank" rel="noopener">FHI</a></span></td>
+      <td>Federated Hermes, Inc.</td>
       <td>Financial Services</td>
-      <td>$9.04B</td>
-      <td><span class="mb-score mb-good" data-order="7.6">7.6</span></td>
-      <td>Solid growth (revenue +29%, EPS +58%); constructive price momentum. Profitability is the softer spot.</td>
-      <td><span class="pos">17.4%</span></td>
-      <td><span class="pos">15.5%</span></td>
-      <td><span class="pos">57.9%</span></td>
-      <td><span class="pos">29.4%</span></td>
-      <td>1.16</td>
-      <td>23.71</td>
+      <td>$4.67B</td>
+      <td><span class="score-badge mb-strong" data-order="8.3">8.3</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">31.1%</span></td>
+      <td><span class="pos">18.3%</span></td>
+      <td>2.48</td>
+      <td>Strong profitability (ROE 31%, op margin 28%); reasonable valuation (P/E 12, PEG 2.5). Growth is modest — more of a compounder.</td>
     </tr>
     <tr>
       <td>21</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/LIVN" target="_blank" rel="noopener">LIVN</a></span></td>
-      <td>LivaNova PLC</td>
-      <td>Healthcare</td>
-      <td>$4.32B</td>
-      <td><span class="mb-score mb-good" data-order="7.5">7.5</span></td>
-      <td>Solid growth (revenue +11%, EPS +288%); constructive price momentum. Balance sheet worth monitoring.</td>
-      <td><span class="pos">15.4%</span></td>
-      <td><span class="pos">15.5%</span></td>
-      <td><span class="pos">68.3%</span></td>
-      <td><span class="pos">10.8%</span></td>
-      <td>0.27</td>
-      <td>23.18</td>
-      <td>0.93</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/COCO" target="_blank" rel="noopener">COCO</a></span></td>
+      <td>The Vita Coco Company, Inc.</td>
+      <td>Consumer Defensive</td>
+      <td>$3.78B</td>
+      <td><span class="score-badge mb-strong" data-order="8.2">8.2</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">31.4%</span></td>
+      <td><span class="pos">28.1%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +28%, EPS +116%); strong profitability (ROE 31%, op margin 29%). Valuation looks stretched.</td>
     </tr>
     <tr>
       <td>22</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/QLYS" target="_blank" rel="noopener">QLYS</a></span></td>
-      <td>Qualys, Inc.</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/DAVE" target="_blank" rel="noopener">DAVE</a></span></td>
+      <td>Dave Inc.</td>
       <td>Technology</td>
-      <td>$6.51B</td>
-      <td><span class="mb-score mb-good" data-order="7.4">7.4</span></td>
-      <td>Strong profitability (ROE 39%, op margin 34%); constructive price momentum. Valuation looks stretched.</td>
-      <td><span class="pos">38.6%</span></td>
-      <td><span class="pos">34.0%</span></td>
-      <td><span class="pos">83.4%</span></td>
-      <td><span class="pos">11.0%</span></td>
-      <td>0.09</td>
-      <td>32.69</td>
-      <td>3.60</td>
+      <td>$3.94B</td>
+      <td><span class="score-badge mb-strong" data-order="8.1">8.1</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">104.8%</span></td>
+      <td><span class="pos">29.6%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 105%, op margin 33%); reasonable valuation (P/E 20). Recent price action is soft.</td>
     </tr>
     <tr>
       <td>23</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/KLIC" target="_blank" rel="noopener">KLIC</a></span></td>
-      <td>Kulicke and Soffa Industries, I</td>
-      <td>Technology</td>
-      <td>$4.76B</td>
-      <td><span class="mb-score mb-good" data-order="7.2">7.2</span></td>
-      <td>Solid growth (revenue +123%); healthy balance sheet (D/E 0.04, CR 3.4). Valuation looks stretched.</td>
-      <td><span class="pos">13.2%</span></td>
-      <td><span class="pos">20.7%</span></td>
-      <td><span class="pos">52.6%</span></td>
-      <td><span class="pos">122.6%</span></td>
-      <td>0.04</td>
-      <td>39.75</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/RDN" target="_blank" rel="noopener">RDN</a></span></td>
+      <td>Radian Group Inc.</td>
+      <td>Financial Services</td>
+      <td>$4.88B</td>
+      <td><span class="score-badge mb-strong" data-order="8.0">8.0</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">12.0%</span></td>
+      <td><span class="pos">93.5%</span></td>
+      <td>—</td>
+      <td>Reasonable valuation (P/E 9); strong profitability (ROE 12%, op margin 32%). Recent price action is soft.</td>
     </tr>
     <tr>
       <td>24</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/DAR" target="_blank" rel="noopener">DAR</a></span></td>
-      <td>Darling Ingredients Inc.</td>
-      <td>Consumer Defensive</td>
-      <td>$9.84B</td>
-      <td><span class="mb-score mb-good" data-order="7.1">7.1</span></td>
-      <td>Solid growth (revenue +16%, EPS +2914%); constructive price momentum. Profitability is the softer spot.</td>
-      <td><span class="pos">12.1%</span></td>
-      <td><span class="pos">12.9%</span></td>
-      <td><span class="pos">26.3%</span></td>
-      <td><span class="pos">16.4%</span></td>
-      <td>0.79</td>
-      <td>16.76</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/FIVE" target="_blank" rel="noopener">FIVE</a></span></td>
+      <td>Five Below, Inc.</td>
+      <td>Consumer Cyclical</td>
+      <td>$13.13B</td>
+      <td><span class="score-badge mb-good" data-order="7.9">7.9</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">21.1%</span></td>
+      <td><span class="pos">32.5%</span></td>
+      <td>0.98</td>
+      <td>Solid growth (revenue +32%, EPS +196%); constructive price momentum. Profitability is the softer spot.</td>
     </tr>
     <tr>
       <td>25</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/ADEA" target="_blank" rel="noopener">ADEA</a></span></td>
+      <td>Adeia Inc.</td>
+      <td>Technology</td>
+      <td>$3.11B</td>
+      <td><span class="score-badge mb-good" data-order="7.9">7.9</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">27.9%</span></td>
+      <td><span class="pos">12.1%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 28%, op margin 32%); constructive price momentum. Growth is modest — more of a compounder.</td>
+    </tr>
+    <tr>
+      <td>26</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/ANIP" target="_blank" rel="noopener">ANIP</a></span></td>
+      <td>ANI Pharmaceuticals, Inc.</td>
+      <td>Healthcare</td>
+      <td>$1.71B</td>
+      <td><span class="score-badge mb-good" data-order="7.8">7.8</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">20.5%</span></td>
+      <td><span class="pos">25.9%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +26%, EPS +191%); reasonable valuation (P/E 16). Recent price action is soft.</td>
+    </tr>
+    <tr>
+      <td>27</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/PRG" target="_blank" rel="noopener">PRG</a></span></td>
+      <td>PROG Holdings, Inc.</td>
+      <td>Industrials</td>
+      <td>$1.65B</td>
+      <td><span class="score-badge mb-good" data-order="7.7">7.7</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">17.1%</span></td>
+      <td><span class="pos">22.3%</span></td>
+      <td>—</td>
+      <td>Reasonable valuation (P/E 13); healthy balance sheet (D/E 1.10, CR 4.5). Profitability is the softer spot.</td>
+    </tr>
+    <tr>
+      <td>28</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/AGX" target="_blank" rel="noopener">AGX</a></span></td>
+      <td>Argan, Inc.</td>
+      <td>Industrials</td>
+      <td>$8.18B</td>
+      <td><span class="score-badge mb-good" data-order="7.6">7.6</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">38.5%</span></td>
+      <td><span class="pos">50.2%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +50%, EPS +102%); healthy balance sheet (D/E 0.02, CR 1.5). Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>29</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/LIVN" target="_blank" rel="noopener">LIVN</a></span></td>
+      <td>LivaNova PLC</td>
+      <td>Healthcare</td>
+      <td>$4.46B</td>
+      <td><span class="score-badge mb-good" data-order="7.5">7.5</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">15.4%</span></td>
+      <td><span class="pos">10.8%</span></td>
+      <td>0.93</td>
+      <td>Solid growth (revenue +11%, EPS +288%); constructive price momentum. Balance sheet worth monitoring.</td>
+    </tr>
+    <tr>
+      <td>30</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/QLYS" target="_blank" rel="noopener">QLYS</a></span></td>
+      <td>Qualys, Inc.</td>
+      <td>Technology</td>
+      <td>$6.57B</td>
+      <td><span class="score-badge mb-good" data-order="7.4">7.4</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">38.6%</span></td>
+      <td><span class="pos">11.0%</span></td>
+      <td>3.60</td>
+      <td>Strong profitability (ROE 39%, op margin 34%); constructive price momentum. Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>31</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/FCFS" target="_blank" rel="noopener">FCFS</a></span></td>
+      <td>FirstCash Holdings, Inc.</td>
+      <td>Financial Services</td>
+      <td>$9.17B</td>
+      <td><span class="score-badge mb-good" data-order="7.3">7.3</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">17.4%</span></td>
+      <td><span class="pos">29.4%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +29%, EPS +58%); reasonable valuation (P/E 24). Profitability is the softer spot.</td>
+    </tr>
+    <tr>
+      <td>32</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/CART" target="_blank" rel="noopener">CART</a></span></td>
+      <td>Maplebear Inc.</td>
+      <td>Consumer Cyclical</td>
+      <td>$11.29B</td>
+      <td><span class="score-badge mb-good" data-order="7.2">7.2</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">16.0%</span></td>
+      <td><span class="pos">14.1%</span></td>
+      <td>2.84</td>
+      <td>Healthy balance sheet (D/E 0.01, CR 2.3); constructive price momentum. Growth is modest — more of a compounder.</td>
+    </tr>
+    <tr>
+      <td>33</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/KLIC" target="_blank" rel="noopener">KLIC</a></span></td>
+      <td>Kulicke and Soffa Industries, I</td>
+      <td>Technology</td>
+      <td>$4.99B</td>
+      <td><span class="score-badge mb-good" data-order="7.1">7.1</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">13.2%</span></td>
+      <td><span class="pos">122.6%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +123%); healthy balance sheet (D/E 0.04, CR 3.4). Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>34</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/MOG-A" target="_blank" rel="noopener">MOG-A</a></span></td>
+      <td>Moog Inc.</td>
+      <td>Industrials</td>
+      <td>$13.36B</td>
+      <td><span class="score-badge mb-good" data-order="7.1">7.1</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">18.1%</span></td>
+      <td><span class="pos">15.2%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +15%, EPS +159%); constructive price momentum. Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>35</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/DAR" target="_blank" rel="noopener">DAR</a></span></td>
+      <td>Darling Ingredients Inc.</td>
+      <td>Consumer Defensive</td>
+      <td>$9.93B</td>
+      <td><span class="score-badge mb-good" data-order="7.0">7.0</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">12.1%</span></td>
+      <td><span class="pos">16.4%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +16%, EPS +2914%); constructive price momentum. Profitability is the softer spot.</td>
+    </tr>
+    <tr>
+      <td>36</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/JOE" target="_blank" rel="noopener">JOE</a></span></td>
       <td>St. Joe Company (The)</td>
       <td>Real Estate</td>
       <td>$3.89B</td>
-      <td><span class="mb-score mb-good" data-order="7.0">7.0</span></td>
-      <td>Constructive price momentum; strong profitability (ROE 16%, op margin 34%). Valuation looks stretched.</td>
-      <td><span class="pos">16.2%</span></td>
-      <td><span class="pos">34.5%</span></td>
-      <td><span class="pos">44.1%</span></td>
-      <td><span class="pos">23.0%</span></td>
-      <td>0.71</td>
-      <td>32.11</td>
+      <td><span class="score-badge mb-fair" data-order="6.9">6.9</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">16.2%</span></td>
+      <td><span class="pos">23.0%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 16%, op margin 34%); constructive price momentum. Valuation looks stretched.</td>
     </tr>
     <tr>
-      <td>26</td>
+      <td>37</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/CR" target="_blank" rel="noopener">CR</a></span></td>
+      <td>Crane Company</td>
+      <td>Industrials</td>
+      <td>$12.87B</td>
+      <td><span class="score-badge mb-fair" data-order="6.8">6.8</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">16.5%</span></td>
+      <td><span class="pos">25.6%</span></td>
+      <td>2.80</td>
+      <td>Constructive price momentum; strong profitability (ROE 17%, op margin 35%). Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>38</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/APPF" target="_blank" rel="noopener">APPF</a></span></td>
       <td>AppFolio, Inc.</td>
       <td>Technology</td>
-      <td>$7.19B</td>
-      <td><span class="mb-score mb-fair" data-order="6.9">6.9</span></td>
-      <td>Healthy balance sheet (D/E 0.07, CR 3.8); strong profitability (ROE 32%, op margin 19%). Valuation looks stretched.</td>
-      <td><span class="pos">32.1%</span></td>
-      <td><span class="pos">18.8%</span></td>
-      <td><span class="pos">63.5%</span></td>
-      <td><span class="pos">19.3%</span></td>
-      <td>0.07</td>
-      <td>46.25</td>
+      <td>$7.00B</td>
+      <td><span class="score-badge mb-fair" data-order="6.7">6.7</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">32.1%</span></td>
+      <td><span class="pos">19.3%</span></td>
+      <td>—</td>
+      <td>Healthy balance sheet (D/E 0.07, CR 3.8); strong profitability (ROE 32%, op margin 19%). Recent price action is soft.</td>
     </tr>
     <tr>
-      <td>27</td>
+      <td>39</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/ACAD" target="_blank" rel="noopener">ACAD</a></span></td>
       <td>ACADIA Pharmaceuticals Inc.</td>
       <td>Healthcare</td>
-      <td>$5.07B</td>
-      <td><span class="mb-score mb-fair" data-order="6.8">6.8</span></td>
-      <td>Constructive price momentum; healthy balance sheet (D/E 0.06, CR 3.4). Valuation looks stretched.</td>
-      <td><span class="pos">35.7%</span></td>
-      <td><span class="pos">12.3%</span></td>
-      <td><span class="pos">62.1%</span></td>
-      <td><span class="pos">16.4%</span></td>
-      <td>0.06</td>
-      <td>13.19</td>
+      <td>$5.09B</td>
+      <td><span class="score-badge mb-fair" data-order="6.6">6.6</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">35.7%</span></td>
+      <td><span class="pos">16.4%</span></td>
+      <td>—</td>
+      <td>Constructive price momentum; healthy balance sheet (D/E 0.06, CR 3.4). Valuation looks stretched.</td>
     </tr>
     <tr>
-      <td>28</td>
+      <td>40</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/DUOL" target="_blank" rel="noopener">DUOL</a></span></td>
       <td>Duolingo, Inc.</td>
       <td>Technology</td>
-      <td>$6.31B</td>
-      <td><span class="mb-score mb-fair" data-order="6.6">6.6</span></td>
-      <td>Healthy balance sheet (D/E 0.06, CR 2.7); strong profitability (ROE 34%, op margin 12%). Recent price action is soft.</td>
-      <td><span class="pos">34.4%</span></td>
-      <td><span class="pos">11.7%</span></td>
-      <td><span class="pos">72.7%</span></td>
-      <td><span class="pos">18.3%</span></td>
-      <td>0.06</td>
-      <td>16.20</td>
+      <td>$6.08B</td>
+      <td><span class="score-badge mb-fair" data-order="6.5">6.5</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">34.4%</span></td>
+      <td><span class="pos">18.3%</span></td>
+      <td>—</td>
+      <td>Healthy balance sheet (D/E 0.06, CR 2.7); strong profitability (ROE 34%, op margin 12%). Recent price action is soft.</td>
     </tr>
     <tr>
-      <td>29</td>
+      <td>41</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/BRC" target="_blank" rel="noopener">BRC</a></span></td>
+      <td>Brady Corporation</td>
+      <td>Industrials</td>
+      <td>$4.46B</td>
+      <td><span class="score-badge mb-fair" data-order="6.4">6.4</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">16.7%</span></td>
+      <td><span class="pos">13.8%</span></td>
+      <td>—</td>
+      <td>Constructive price momentum; reasonable valuation (P/E 22). Growth is modest — more of a compounder.</td>
+    </tr>
+    <tr>
+      <td>42</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/FSS" target="_blank" rel="noopener">FSS</a></span></td>
       <td>Federal Signal Corporation</td>
       <td>Industrials</td>
-      <td>$7.86B</td>
-      <td><span class="mb-score mb-fair" data-order="6.5">6.5</span></td>
-      <td>Constructive price momentum; healthy balance sheet (D/E 0.32, CR 2.7). Profitability is the softer spot.</td>
+      <td>$7.70B</td>
+      <td><span class="score-badge mb-fair" data-order="6.3">6.3</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
       <td><span class="pos">20.6%</span></td>
-      <td><span class="pos">17.7%</span></td>
-      <td><span class="pos">29.2%</span></td>
       <td><span class="pos">18.7%</span></td>
-      <td>0.32</td>
-      <td>27.80</td>
       <td>1.80</td>
+      <td>Constructive price momentum; reasonable valuation (P/E 27, PEG 1.8). Profitability is the softer spot.</td>
     </tr>
     <tr>
-      <td>30</td>
+      <td>43</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/AEIS" target="_blank" rel="noopener">AEIS</a></span></td>
+      <td>Advanced Energy Industries, Inc</td>
+      <td>Industrials</td>
+      <td>$13.62B</td>
+      <td><span class="score-badge mb-fair" data-order="6.2">6.2</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">16.3%</span></td>
+      <td><span class="pos">30.0%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +30%, EPS +93%); constructive price momentum. Valuation looks stretched.</td>
+    </tr>
+    <tr>
+      <td>44</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/AWI" target="_blank" rel="noopener">AWI</a></span></td>
       <td>Armstrong World Industries Inc</td>
       <td>Industrials</td>
-      <td>$7.89B</td>
-      <td><span class="mb-score mb-fair" data-order="6.4">6.4</span></td>
-      <td>Strong profitability (ROE 37%, op margin 22%); constructive price momentum. Balance sheet worth monitoring.</td>
-      <td><span class="pos">36.6%</span></td>
-      <td><span class="pos">21.6%</span></td>
-      <td><span class="pos">40.3%</span></td>
-      <td><span class="pos">11.2%</span></td>
-      <td>0.66</td>
-      <td>25.58</td>
+      <td>$7.74B</td>
+      <td><span class="score-badge mb-fair" data-order="6.2">6.2</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">36.6%</span></td>
+      <td><span class="pos">11.2%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 37%, op margin 22%); reasonable valuation (P/E 25). Balance sheet worth monitoring.</td>
     </tr>
     <tr>
-      <td>31</td>
+      <td>45</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/CRVL" target="_blank" rel="noopener">CRVL</a></span></td>
       <td>CorVel Corp.</td>
       <td>Financial Services</td>
-      <td>$3.09B</td>
-      <td><span class="mb-score mb-fair" data-order="6.2">6.2</span></td>
-      <td>Reasonable valuation (P/E 27); strong profitability (ROE 31%, op margin 17%). Recent price action is soft.</td>
-      <td><span class="pos">30.7%</span></td>
-      <td><span class="pos">16.7%</span></td>
-      <td><span class="pos">24.8%</span></td>
-      <td><span class="pos">10.7%</span></td>
-      <td>0.07</td>
-      <td>27.44</td>
+      <td>$3.10B</td>
+      <td><span class="score-badge mb-fair" data-order="6.1">6.1</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">30.7%</span></td>
+      <td><span class="pos">10.7%</span></td>
+      <td>—</td>
+      <td>Reasonable valuation (P/E 27); strong profitability (ROE 31%, op margin 17%). Recent price action is soft.</td>
     </tr>
     <tr>
-      <td>32</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/EXLS" target="_blank" rel="noopener">EXLS</a></span></td>
-      <td>ExlService Holdings, Inc.</td>
-      <td>Technology</td>
-      <td>$5.29B</td>
-      <td><span class="mb-score mb-fair" data-order="6.1">6.1</span></td>
-      <td>Reasonable valuation (P/E 22, PEG 1.0); strong profitability (ROE 26%, op margin 15%). Recent price action is soft.</td>
-      <td><span class="pos">25.9%</span></td>
-      <td><span class="pos">14.6%</span></td>
-      <td><span class="pos">38.5%</span></td>
-      <td><span class="pos">15.6%</span></td>
-      <td>0.57</td>
-      <td>22.09</td>
-      <td>1.04</td>
-    </tr>
-    <tr>
-      <td>33</td>
+      <td>46</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/EXPO" target="_blank" rel="noopener">EXPO</a></span></td>
       <td>Exponent, Inc.</td>
       <td>Industrials</td>
-      <td>$3.25B</td>
-      <td><span class="mb-score mb-fair" data-order="6.0">6.0</span></td>
-      <td>Strong profitability (ROE 31%, op margin 19%); healthy balance sheet (D/E 0.28, CR 2.0). Valuation looks stretched.</td>
-      <td><span class="pos">31.2%</span></td>
-      <td><span class="pos">18.8%</span></td>
-      <td><span class="pos">36.4%</span></td>
-      <td><span class="pos">12.0%</span></td>
-      <td>0.28</td>
-      <td>30.24</td>
+      <td>$3.18B</td>
+      <td><span class="score-badge mb-fair" data-order="6.0">6.0</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">31.2%</span></td>
+      <td><span class="pos">12.0%</span></td>
+      <td>—</td>
+      <td>Strong profitability (ROE 31%, op margin 19%); solid growth (revenue +12%, EPS +16%). Recent price action is soft.</td>
     </tr>
     <tr>
-      <td>34</td>
+      <td>47</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/EXLS" target="_blank" rel="noopener">EXLS</a></span></td>
+      <td>ExlService Holdings, Inc.</td>
+      <td>Technology</td>
+      <td>$5.26B</td>
+      <td><span class="score-badge mb-marginal" data-order="5.9">5.9</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">25.9%</span></td>
+      <td><span class="pos">15.6%</span></td>
+      <td>1.04</td>
+      <td>Reasonable valuation (P/E 22, PEG 1.0); strong profitability (ROE 26%, op margin 15%). Recent price action is soft.</td>
+    </tr>
+    <tr>
+      <td>48</td>
+      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/RSI" target="_blank" rel="noopener">RSI</a></span></td>
+      <td>Rush Street Interactive, Inc.</td>
+      <td>Consumer Cyclical</td>
+      <td>$5.68B</td>
+      <td><span class="score-badge mb-marginal" data-order="5.8">5.8</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">30.3%</span></td>
+      <td><span class="pos">46.3%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +46%, EPS -19%); healthy balance sheet (D/E 0.02, CR 2.1). Recent price action is soft.</td>
+    </tr>
+    <tr>
+      <td>49</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/GOLF" target="_blank" rel="noopener">GOLF</a></span></td>
       <td>Acushnet Holdings Corp.</td>
       <td>Consumer Cyclical</td>
       <td>$5.28B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.9">5.9</span></td>
-      <td>Solid growth (revenue +14%, EPS +66%); reasonable valuation (P/E 25). Balance sheet worth monitoring.</td>
-      <td><span class="pos">25.2%</span></td>
-      <td><span class="pos">21.4%</span></td>
-      <td><span class="pos">49.1%</span></td>
-      <td><span class="pos">13.8%</span></td>
-      <td>1.17</td>
-      <td>24.56</td>
+      <td><span class="score-badge mb-marginal" data-order="5.7">5.7</span></td>
       <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td><span class="pos">25.2%</span></td>
+      <td><span class="pos">13.8%</span></td>
+      <td>—</td>
+      <td>Solid growth (revenue +14%, EPS +66%); reasonable valuation (P/E 25). Recent price action is soft.</td>
     </tr>
     <tr>
-      <td>35</td>
+      <td>50</td>
       <td><span class="ticker"><a href="https://finance.yahoo.com/quote/BCPC" target="_blank" rel="noopener">BCPC</a></span></td>
       <td>Balchem Corporation</td>
       <td>Basic Materials</td>
-      <td>$5.71B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.8">5.8</span></td>
-      <td>Constructive price momentum; healthy balance sheet (D/E 0.13, CR 2.7). Valuation looks stretched.</td>
+      <td>$5.67B</td>
+      <td><span class="score-badge mb-marginal" data-order="5.6">5.6</span></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
       <td><span class="pos">12.8%</span></td>
-      <td><span class="pos">20.9%</span></td>
-      <td><span class="pos">36.3%</span></td>
       <td><span class="pos">11.2%</span></td>
-      <td>0.13</td>
-      <td>35.24</td>
       <td>3.54</td>
-    </tr>
-    <tr>
-      <td>36</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/RSI" target="_blank" rel="noopener">RSI</a></span></td>
-      <td>Rush Street Interactive, Inc.</td>
-      <td>Consumer Cyclical</td>
-      <td>$6.14B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.6">5.6</span></td>
-      <td>Healthy balance sheet (D/E 0.02, CR 2.1); solid growth (revenue +46%, EPS -19%). Valuation looks stretched.</td>
-      <td><span class="pos">30.3%</span></td>
-      <td><span class="pos">11.7%</span></td>
-      <td><span class="pos">35.0%</span></td>
-      <td><span class="pos">46.3%</span></td>
-      <td>0.02</td>
-      <td>81.13</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>37</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/BOOT" target="_blank" rel="noopener">BOOT</a></span></td>
-      <td>Boot Barn Holdings, Inc.</td>
-      <td>Consumer Cyclical</td>
-      <td>$5.02B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.5">5.5</span></td>
-      <td>Reasonable valuation (P/E 21); solid growth (revenue +18%, EPS +32%). Balance sheet worth monitoring.</td>
-      <td><span class="pos">19.2%</span></td>
-      <td><span class="pos">15.3%</span></td>
-      <td><span class="pos">38.5%</span></td>
-      <td><span class="pos">17.7%</span></td>
-      <td>0.59</td>
-      <td>21.01</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>38</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/AGYS" target="_blank" rel="noopener">AGYS</a></span></td>
-      <td>Agilysys, Inc.</td>
-      <td>Technology</td>
-      <td>$3.01B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.4">5.4</span></td>
-      <td>Solid growth (revenue +14%, EPS +88%); healthy balance sheet (D/E 0.05, CR 1.7). Valuation looks stretched.</td>
-      <td><span class="pos">13.8%</span></td>
-      <td><span class="pos">11.1%</span></td>
-      <td><span class="pos">63.1%</span></td>
-      <td><span class="pos">14.3%</span></td>
-      <td>0.05</td>
-      <td>70.11</td>
-      <td>2.41</td>
-    </tr>
-    <tr>
-      <td>39</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/OLLI" target="_blank" rel="noopener">OLLI</a></span></td>
-      <td>Ollie's Bargain Outlet Holdings</td>
-      <td>Consumer Defensive</td>
-      <td>$4.76B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.2">5.2</span></td>
-      <td>Reasonable valuation (P/E 20); solid growth (revenue +14%, EPS +20%). Recent price action is soft.</td>
-      <td><span class="pos">13.8%</span></td>
-      <td><span class="pos">10.6%</span></td>
-      <td><span class="pos">40.7%</span></td>
-      <td><span class="pos">14.2%</span></td>
-      <td>0.38</td>
-      <td>19.68</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>40</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/BDC" target="_blank" rel="noopener">BDC</a></span></td>
-      <td>Belden Inc</td>
-      <td>Technology</td>
-      <td>$5.26B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.1">5.1</span></td>
-      <td>Reasonable valuation (P/E 22); constructive price momentum. Balance sheet worth monitoring.</td>
-      <td><span class="pos">18.6%</span></td>
-      <td><span class="pos">13.2%</span></td>
-      <td><span class="pos">37.7%</span></td>
-      <td><span class="pos">11.6%</span></td>
-      <td>0.97</td>
-      <td>21.82</td>
-      <td>—</td>
-    </tr>
-    <tr>
-      <td>41</td>
-      <td><span class="ticker"><a href="https://finance.yahoo.com/quote/BROS" target="_blank" rel="noopener">BROS</a></span></td>
-      <td>Dutch Bros Inc.</td>
-      <td>Consumer Cyclical</td>
-      <td>$8.66B</td>
-      <td><span class="mb-score mb-marginal" data-order="5.0">5.0</span></td>
-      <td>Solid growth (revenue +32%, EPS +37%); strong profitability (ROE 15%, op margin 13%). Recent price action is soft.</td>
-      <td><span class="pos">14.6%</span></td>
-      <td><span class="pos">12.9%</span></td>
-      <td><span class="pos">25.1%</span></td>
-      <td><span class="pos">32.5%</span></td>
-      <td>1.24</td>
-      <td>68.85</td>
-      <td>1.79</td>
+      <td>Constructive price momentum; healthy balance sheet (D/E 0.13, CR 2.7). Valuation looks stretched.</td>
     </tr>
   </tbody>
 </table>
 
 <footer>
   <div class="disclaimer">
-    <strong>Not investment advice.</strong> This is a factor screener — the Multibagger Score ranks candidates within the filtered pool; it is not a probability of future returns. Multibagger identification is inherently uncertain and even a perfect score is a research starting point, not a buy signal. Do your own due diligence on business model, management quality, competitive dynamics, and valuation before acting on any name here.
+    <strong>Not investment advice.</strong> The Multibagger Score is a fundamental ranking; the Technical Score is an entry-timing indicator; the Supertrend signal is a trend-following heuristic. Together they help you filter and prioritise — they do not tell you what to buy. All three can be wrong. Do your own due diligence on business model, management quality, competitive dynamics, and valuation before acting on any name here.
   </div>
   <div>Data source: Yahoo Finance</div>
 </footer>
@@ -798,8 +997,7 @@ $(document).ready(function() {
         order: [[0, 'asc']],
         columnDefs: [
             { targets: 0, className: 'rank' },
-            { targets: 5, orderable: true, type: 'num' },   // Score sorts numerically
-            { targets: 6, className: 'rationale' },
+            { targets: -1, className: 'rationale' },
         ]
     });
 });
