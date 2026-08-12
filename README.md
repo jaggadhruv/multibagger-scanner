@@ -1,0 +1,219 @@
+# US Multibagger Screener
+
+A factor-based screener that ranks US stocks (S&P 1500) by their fit to a
+multibagger profile: small-to-mid cap, high quality, growing, financially
+healthy, reasonably valued.
+
+**Free**. No paid APIs. No signup. Runs locally and on GitHub Actions.
+
+---
+
+## What this actually does
+
+1. Pulls ~1,000 tickers from the S&P 400 (MidCap) + S&P 600 (SmallCap) — the actual multibagger hunting ground. The S&P 500 is excluded by default because its members are too big (min ~$18B market cap) to plausibly deliver multibagger returns. Add `--include-large` to include them.
+2. Fetches fundamentals for each via `yfinance` (free, unofficial Yahoo Finance).
+3. Applies hard filters (market cap band, ROE, growth, debt, FCF, etc.) to narrow to ~50–150 candidates.
+4. Computes a composite factor score (Quality + Growth + Health + Valuation + Momentum) using robust z-scores.
+5. Writes a self-contained interactive HTML report with the top 50.
+
+**This is a candidate generator, not a buy list.** See the disclaimer in the report.
+
+---
+
+## Quick start (local)
+
+You'll need Python 3.10+.
+
+```bash
+# 1. Clone your repo (once you push it)
+git clone https://github.com/<your-username>/multibagger-screener.git
+cd multibagger-screener
+
+# 2. Set up a virtual environment
+python -m venv .venv
+source .venv/bin/activate      # macOS/Linux
+# .venv\Scripts\activate       # Windows
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Smoke test with a small sample (~30 tickers, 1 minute)
+python main.py --sample
+
+# 5. Open the report
+open output/report.html         # macOS
+# start output/report.html      # Windows
+# xdg-open output/report.html   # Linux
+```
+
+If that works, do a real run:
+
+```bash
+# Full S&P 1500 run — 15 to 30 minutes depending on network / rate limiting
+python main.py
+
+# Or scale up gradually
+python main.py --limit 200
+python main.py --limit 500
+```
+
+---
+
+## CLI flags
+
+| Flag | What it does |
+|------|--------------|
+| `--sample` | ~30 hand-picked tickers, useful for smoke tests |
+| `--limit N` | First N tickers of the universe (for iteration) |
+| `--include-large` | Add S&P 500 to the universe (default: mid+small only). Only useful for benchmarking; large caps rarely become multibaggers. |
+| `--permissive` | Include rows with missing data (larger candidate pool, noisier) |
+| `--top N` | Number of stocks to show in the HTML report (default 50) |
+| `--workers N` | Concurrent yfinance fetches (default 8; higher = faster but more likely to be rate-limited) |
+| `--output-dir DIR` | Where CSVs and HTML go (default `output/`) |
+
+---
+
+## Project layout
+
+```
+multibagger-screener/
+├── main.py                     # Entry point
+├── requirements.txt
+├── README.md
+├── .gitignore
+├── src/
+│   ├── universe.py             # Get tickers from Wikipedia
+│   ├── fetch.py                # yfinance fundamentals
+│   ├── screen.py               # Hard filters
+│   ├── score.py                # Composite factor scoring
+│   └── report.py               # HTML report generation
+├── .github/workflows/
+│   └── screener.yml            # Weekly automated run + Pages deploy
+└── output/                     # Generated (gitignored except report.html)
+    ├── raw_data.csv
+    ├── filtered.csv
+    ├── scored.csv
+    └── report.html
+```
+
+---
+
+## Tuning the screener
+
+**Loosening or tightening filters** — edit `DEFAULT_FILTERS` in `src/screen.py`:
+
+```python
+DEFAULT_FILTERS = {
+    "market_cap_min": 300_000_000,       # $300M
+    "market_cap_max": 20_000_000_000,    # $20B
+    "roe_min": 0.12,                     # 12%
+    "operating_margin_min": 0.08,
+    "gross_margin_min": 0.20,
+    "revenue_growth_min": 0.10,
+    "debt_to_equity_max": 1.5,
+    "current_ratio_min": 1.2,
+    "positive_fcf_required": True,
+}
+```
+
+**Changing factor weights** — edit `DEFAULT_WEIGHTS` in `src/score.py`:
+
+```python
+DEFAULT_WEIGHTS = {
+    "quality":   0.30,
+    "growth":    0.30,
+    "health":    0.15,
+    "valuation": 0.15,
+    "momentum":  0.10,
+}
+```
+
+**Sector-neutral scoring** (a common next step): group by sector before
+computing z-scores, so you're comparing tech companies to tech companies rather
+than to utilities. Left as an exercise — it's a ~10-line change in `score.py`.
+
+---
+
+## Pushing to GitHub
+
+```bash
+git init
+git add .
+git commit -m "Initial multibagger screener"
+git branch -M main
+git remote add origin https://github.com/<your-username>/multibagger-screener.git
+git push -u origin main
+```
+
+---
+
+## Automating with GitHub Actions
+
+The workflow at `.github/workflows/screener.yml` will:
+
+- Run **every Saturday at 06:00 UTC** (after Friday US close).
+- Run **on-demand** from the Actions tab (with optional `limit` / `permissive` inputs).
+- Upload the whole `output/` folder as an artifact (downloadable for 30 days).
+- Publish the HTML report to **GitHub Pages** at `https://<your-username>.github.io/multibagger-screener/report.html`.
+
+### One-time setup for GitHub Pages
+
+1. Push the repo. Let the first Action run finish (or trigger it manually via **Actions → Weekly Multibagger Screener → Run workflow**).
+2. This creates a `gh-pages` branch.
+3. Go to **Settings → Pages**. Under "Build and deployment", set:
+   - Source: **Deploy from a branch**
+   - Branch: **gh-pages** / root
+4. Save. Within a minute your report will be live at `https://<your-username>.github.io/multibagger-screener/report.html`.
+
+### Cost
+
+Public repos on GitHub Actions: **unlimited free minutes**. This job runs in
+~15–30 min once a week, so cost is $0.
+
+---
+
+## Known limitations / honest caveats
+
+- **yfinance is unofficial.** Yahoo occasionally changes their internal
+  endpoints and yfinance breaks until it's updated. If you see mass NaN,
+  `pip install --upgrade yfinance` usually fixes it.
+- **Rate limiting.** With 8 concurrent workers you should be fine. Bumping to
+  20+ workers gets you rate-limited and rows fail. Retries help but don't
+  eliminate this.
+- **Data quality varies.** Small caps in particular have missing values for
+  things like PEG ratio or gross margin. Strict mode excludes them; permissive
+  mode keeps them with penalty.
+- **Sector neutrality.** Current scoring is cross-sectional across all sectors,
+  so highly profitable sectors (software, semis) will dominate. If you want
+  sector-neutral ranks, group by sector before z-scoring.
+- **Survivorship bias.** Wikipedia constituent lists reflect *current* index
+  members. Companies that were dropped (often after decline) aren't in your
+  universe. This matters more for backtesting than for forward screening.
+- **No qualitative overlay.** Business model, management quality, moat depth,
+  fraud risk — none of these are in the screener. That's your job before you
+  act on any name.
+- **US markets only for now.** India requires a separate data pipeline (see
+  next steps).
+
+---
+
+## Suggested next steps
+
+1. **Sector-neutral scoring** — see comment in `score.py`.
+2. **5-year growth CAGRs** — pull from `stock.financials` rather than just
+   trailing YoY. More stable signal.
+3. **Insider transactions** — `stock.insider_transactions` gives you buys/sells.
+4. **News flagging** — auditor changes, guidance cuts, management departures.
+5. **Backtesting harness** — replay the screen at monthly snapshots on
+   historical constituent lists, track forward 3/5-year returns.
+6. **India module** — a parallel pipeline using nsepython / screener.in for
+   Indian stocks, with promoter pledge as an additional filter.
+
+---
+
+## Disclaimer
+
+This tool is for **educational and research purposes only**. Nothing here is
+investment advice. The author (you, once you fork it) makes no warranties about
+data accuracy or fitness for any purpose. You are solely responsible for your
+investment decisions.

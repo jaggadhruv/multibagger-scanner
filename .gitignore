@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+*.egg-info/
+.pytest_cache/
+
+# Output (regenerated each run)
+output/*.csv
+output/raw_data.csv
+
+# Keep the report HTML tracked if you want to publish it via GitHub Pages,
+# otherwise uncomment the next line
+# output/report.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
