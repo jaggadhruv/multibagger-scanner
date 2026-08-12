@@ -19,6 +19,7 @@ from src.universe import get_universe, get_sample_tickers
 from src.fetch import fetch_fundamentals
 from src.screen import apply_filters
 from src.score import compute_scores
+from src.technicals import fetch_technicals
 from src.report import generate_html_report
 
 
@@ -88,33 +89,46 @@ def main():
     filtered_path = output_dir / "filtered.csv"
     filtered.to_csv(filtered_path, index=False)
 
-    # 4. SCORE
+    # 4. SCORE (fundamental)
     print("\n" + "=" * 60)
-    print("STEP 4: Scoring")
+    print("STEP 4: Fundamental scoring")
     print("=" * 60)
     scored = compute_scores(filtered)
     scored_path = output_dir / "scored.csv"
     scored.to_csv(scored_path, index=False)
     print(f"Scored data saved: {scored_path}")
 
+    # 5. TECHNICALS (only for filtered candidates - not the whole universe)
+    print("\n" + "=" * 60)
+    print("STEP 5: Technical analysis (price history + Supertrend)")
+    print("=" * 60)
+    technicals = fetch_technicals(scored["ticker"].tolist(), max_workers=args.workers)
+    tech_path = output_dir / "technicals.csv"
+    technicals.to_csv(tech_path, index=False)
+
+    # Merge technicals into scored dataframe on ticker
+    scored = scored.merge(technicals, on="ticker", how="left", suffixes=("", "_tech"))
+    scored.to_csv(output_dir / "final.csv", index=False)
+
     # Show top 10 in console
-    print("\nTop 10 by Multibagger Score:")
-    top_cols = ["ticker", "name", "sector", "market_cap", "multibagger_score",
-                "roe", "revenue_growth", "operating_margin", "rationale"]
+    print("\nTop 10 (Fundamental + Technical):")
+    top_cols = ["ticker", "name", "sector", "market_cap",
+                "multibagger_score", "technical_score", "supertrend_signal",
+                "rsi_14", "pct_from_200ma", "pct_from_52w_high", "rationale"]
     top_cols = [c for c in top_cols if c in scored.columns]
-    with pd.option_context("display.max_columns", None, "display.width", 220,
-                            "display.max_colwidth", 60):
+    with pd.option_context("display.max_columns", None, "display.width", 260,
+                            "display.max_colwidth", 55):
         print(scored[top_cols].head(10).to_string(index=False))
 
-    # 5. REPORT
+    # 6. REPORT
     print("\n" + "=" * 60)
-    print("STEP 5: Generating HTML report")
+    print("STEP 6: Generating HTML report")
     print("=" * 60)
     report_path = generate_html_report(
         scored_df=scored,
         universe_size=len(tickers),
         fetched_size=len(fetched),
-        output_path=output_dir / "report.html",
+        output_path=output_dir / "index.html",
         top_n=args.top,
     )
     print(f"\nDone. Open in browser:\n  file://{report_path.resolve()}")

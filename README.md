@@ -10,13 +10,19 @@ healthy, reasonably valued.
 
 ## What this actually does
 
-1. Pulls ~1,000 tickers from the S&P 400 (MidCap) + S&P 600 (SmallCap) — the actual multibagger hunting ground. The S&P 500 is excluded by default because its members are too big (min ~$18B market cap) to plausibly deliver multibagger returns. Add `--include-large` to include them.
-2. Fetches fundamentals for each via `yfinance` (free, unofficial Yahoo Finance).
-3. Applies hard filters (market cap band, ROE, growth, debt, FCF, etc.) to narrow to ~50–150 candidates.
-4. Computes a composite factor score (Quality + Growth + Health + Valuation + Momentum) using robust z-scores.
-5. Writes a self-contained interactive HTML report with the top 50.
+1. Pulls ~1,000 tickers from the S&P 400 (MidCap) + S&P 600 (SmallCap) — the multibagger hunting ground. Add `--include-large` to include S&P 500 (rarely useful).
+2. Fetches fundamentals for each via `yfinance` (free).
+3. Applies hard filters (market cap $1B–$15B, ROE ≥12%, positive FCF, etc.) — narrows to ~30–100 candidates.
+4. **Fundamental scoring** — composite Multibagger Score (0-10) weighted toward financial strength.
+5. **Technical analysis** (only for candidates that passed filters — keeps it fast):
+   - RSI (14-day, Wilder smoothing)
+   - Distance from 50-day and 200-day moving averages
+   - Position within 52-week range
+   - **Technical Score (0-10)** — "how good is this entry point?"
+   - **Supertrend indicator** — BUY / SELL signal with days-in-trend
+6. Writes a self-contained interactive HTML report ranked by Multibagger Score.
 
-**This is a candidate generator, not a buy list.** See the disclaimer in the report.
+**This is a candidate generator, not a buy list.** Fundamental score, technical score, and Supertrend signal are three independent lenses — the more they agree, the higher-conviction the setup, but all three can be wrong.
 
 ---
 
@@ -41,9 +47,9 @@ pip install -r requirements.txt
 python main.py --sample
 
 # 5. Open the report
-open output/report.html         # macOS
-# start output/report.html      # Windows
-# xdg-open output/report.html   # Linux
+open output/index.html          # macOS
+# start output/index.html       # Windows
+# xdg-open output/index.html    # Linux
 ```
 
 If that works, do a real run:
@@ -85,15 +91,16 @@ multibagger-screener/
 │   ├── universe.py             # Get tickers from Wikipedia
 │   ├── fetch.py                # yfinance fundamentals
 │   ├── screen.py               # Hard filters
-│   ├── score.py                # Composite factor scoring
+│   ├── score.py                # Fundamental scoring + rationale
+│   ├── technicals.py           # RSI, MA, Supertrend, Technical Score
 │   └── report.py               # HTML report generation
 ├── .github/workflows/
 │   └── screener.yml            # Weekly automated run + Pages deploy
-└── output/                     # Generated (gitignored except report.html)
+└── output/                     # Generated (gitignored except index.html)
     ├── raw_data.csv
     ├── filtered.csv
     ├── scored.csv
-    └── report.html
+    └── index.html
 ```
 
 ---
@@ -167,7 +174,7 @@ The workflow at `.github/workflows/screener.yml` will:
 3. Go to **Settings → Pages**. Under "Build and deployment", set:
    - Source: **Deploy from a branch**
    - Branch: **gh-pages** / root
-4. Save. Within a minute your report will be live at `https://<your-username>.github.io/multibagger-screener/report.html`.
+4. Save. Within a minute your report will be live at `https://<your-username>.github.io/multibagger-screener/`.
 
 ### Cost
 

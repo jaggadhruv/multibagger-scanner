@@ -1,10 +1,12 @@
 """
 Generate a self-contained HTML report with a sortable, filterable table.
 
-New in this version:
-  * Multibagger Score (0-10) rendered as a colored badge
-  * Rationale column with per-company reasoning
-  * Ranked by Multibagger Score descending
+Columns include:
+  * Multibagger Score (0-10) — fundamental composite, colored badge
+  * Technical Score (0-10) — entry-point quality, colored badge
+  * Supertrend Signal — BUY / SELL badge with days-in-trend
+  * Rationale — auto-generated per-company reasoning
+  * Key ratios (ROE, growth, PEG) and technicals (RSI, % from 200MA, % from 52w high)
 """
 from __future__ import annotations
 from datetime import datetime, timezone
@@ -24,20 +26,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <style>
   :root {{
-    --bg: #fafbfc;
-    --card: #ffffff;
-    --border: #e1e4e8;
-    --text: #24292e;
-    --muted: #6a737d;
-    --accent: #0366d6;
-    --good: #22863a;
-    --warn: #b08800;
+    --bg: #fafbfc; --card: #ffffff; --border: #e1e4e8;
+    --text: #24292e; --muted: #6a737d; --accent: #0366d6;
+    --good: #22863a; --warn: #b08800; --bad: #cb2431;
   }}
   * {{ box-sizing: border-box; }}
   body {{
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg); color: var(--text);
-    margin: 0 auto; padding: 24px; max-width: 1700px;
+    margin: 0 auto; padding: 24px; max-width: 1900px;
   }}
   header {{ margin-bottom: 24px; }}
   h1 {{ margin: 0 0 4px; font-size: 24px; }}
@@ -55,6 +52,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .criteria {{
     background: var(--card); border: 1px solid var(--border);
     border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px;
+    line-height: 1.6;
   }}
   .criteria strong {{ color: var(--accent); }}
   table.dataTable {{
@@ -70,21 +68,33 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .rank {{ font-weight: 600; color: var(--muted); text-align: center; }}
   .ticker a {{ color: var(--accent); text-decoration: none; font-weight: 600; }}
   .ticker a:hover {{ text-decoration: underline; }}
-  .rationale {{ font-size: 12px; color: #444; max-width: 380px; line-height: 1.4; }}
+  .rationale {{ font-size: 12px; color: #444; max-width: 340px; line-height: 1.4; }}
   .pos {{ color: var(--good); }}
-  .neg {{ color: #cb2431; }}
+  .neg {{ color: var(--bad); }}
 
-  /* Multibagger Score badge */
-  .mb-score {{
+  .score-badge {{
     display: inline-block; min-width: 40px; padding: 4px 8px;
     border-radius: 12px; font-weight: 700; font-size: 13px;
     text-align: center; color: white;
   }}
-  .mb-elite {{ background: #22863a; }}   /* 9.0 - 10.0 */
-  .mb-strong {{ background: #2f9e5c; }}  /* 8.0 - 8.9 */
-  .mb-good {{ background: #7cb342; color: #1a3d0a; }}  /* 7.0 - 7.9 */
-  .mb-fair {{ background: #f0c040; color: #4a3800; }}  /* 6.0 - 6.9 */
-  .mb-marginal {{ background: #e0a040; color: #4a2800; }}  /* 5.0 - 5.9 */
+  .mb-elite    {{ background: #22863a; }}
+  .mb-strong   {{ background: #2f9e5c; }}
+  .mb-good     {{ background: #7cb342; color: #1a3d0a; }}
+  .mb-fair     {{ background: #f0c040; color: #4a3800; }}
+  .mb-marginal {{ background: #e0a040; color: #4a2800; }}
+  .tech-great  {{ background: #22863a; }}
+  .tech-good   {{ background: #7cb342; color: #1a3d0a; }}
+  .tech-neutral{{ background: #f0c040; color: #4a3800; }}
+  .tech-weak   {{ background: #e0a040; color: #4a2800; }}
+  .tech-bad    {{ background: var(--bad); }}
+
+  .signal {{
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-weight: 700; font-size: 12px; letter-spacing: 0.5px;
+  }}
+  .signal-buy  {{ background: #d4edda; color: #155724; border: 1px solid #22863a; }}
+  .signal-sell {{ background: #f8d7da; color: #721c24; border: 1px solid var(--bad); }}
+  .signal-days {{ display: block; font-size: 10px; color: var(--muted); margin-top: 2px; font-weight: 400; }}
 
   footer {{
     margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
@@ -110,21 +120,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </div>
 
 <div class="criteria">
-<strong>Hard filters</strong>: Market cap $2B–$10B · ROE ≥12% · Op margin ≥8% · Gross margin ≥20% · Revenue growth ≥10% · D/E ≤1.5 · Current ratio ≥1.2 · Positive FCF<br>
-<strong>Multibagger Score (0-10)</strong>: Weighted composite of Quality (30%) + Health (25%) + Growth (25%) + Valuation (15%) + Momentum (5%). Financial strength (Quality + Health = 55%) dominates. Score is percentile-ranked within the filtered pool: 10 = best passer, 5 = weakest passer.<br>
-<strong>Score bands</strong>:
-<span class="mb-score mb-elite" style="padding:2px 6px;font-size:11px">9.0+</span> Elite ·
-<span class="mb-score mb-strong" style="padding:2px 6px;font-size:11px">8.0-8.9</span> Strong ·
-<span class="mb-score mb-good" style="padding:2px 6px;font-size:11px">7.0-7.9</span> Good ·
-<span class="mb-score mb-fair" style="padding:2px 6px;font-size:11px">6.0-6.9</span> Fair ·
-<span class="mb-score mb-marginal" style="padding:2px 6px;font-size:11px">5.0-5.9</span> Marginal
+<strong>Hard filters</strong>: Market cap $1B–$15B · ROE ≥12% · Op margin ≥8% · Gross margin ≥20% · Revenue growth ≥10% · D/E ≤1.5 · Current ratio ≥1.2 · Positive FCF<br>
+<strong>Multibagger Score (0-10, fundamental)</strong>: Quality (30%) + Health (25%) + Growth (25%) + Valuation (15%) + Momentum (5%). Financial strength (Quality + Health = 55%) dominates.<br>
+<strong>Technical Score (0-10, entry-timing)</strong>: RSI in 40-60 sweet spot (+2), 5-20% above 200-day MA (+1.5), 10-25% pullback from 52w high (+1.5). Overextended prices are penalised.<br>
+<strong>Supertrend (period=10, mult=3.0)</strong>: <span class="signal signal-buy">BUY</span> = price above trend line; <span class="signal signal-sell">SELL</span> = price below. Days count shows how long the current signal has held.
 </div>
 
 {table}
 
 <footer>
   <div class="disclaimer">
-    <strong>Not investment advice.</strong> This is a factor screener — the Multibagger Score ranks candidates within the filtered pool; it is not a probability of future returns. Multibagger identification is inherently uncertain and even a perfect score is a research starting point, not a buy signal. Do your own due diligence on business model, management quality, competitive dynamics, and valuation before acting on any name here.
+    <strong>Not investment advice.</strong> The Multibagger Score is a fundamental ranking; the Technical Score is an entry-timing indicator; the Supertrend signal is a trend-following heuristic. Together they help you filter and prioritise — they do not tell you what to buy. All three can be wrong. Do your own due diligence on business model, management quality, competitive dynamics, and valuation before acting on any name here.
   </div>
   <div>Data source: Yahoo Finance</div>
 </footer>
@@ -136,8 +142,7 @@ $(document).ready(function() {{
         order: [[0, 'asc']],
         columnDefs: [
             {{ targets: 0, className: 'rank' }},
-            {{ targets: 5, orderable: true, type: 'num' }},   // Score sorts numerically
-            {{ targets: 6, className: 'rationale' }},
+            {{ targets: -1, className: 'rationale' }},
         ]
     }});
 }});
@@ -164,26 +169,56 @@ def _fmt_pct(x):
     return f'<span class="{cls}">{x*100:.1f}%</span>'
 
 
+def _fmt_pct_raw(x):
+    """For already-in-percent values (e.g. pct_from_200ma)."""
+    if pd.isna(x): return "—"
+    cls = "pos" if x >= 0 else "neg"
+    return f'<span class="{cls}">{x:+.1f}%</span>'
+
+
 def _fmt_ratio(x):
     if pd.isna(x): return "—"
     return f"{x:.2f}"
+
+
+def _fmt_rsi(x):
+    if pd.isna(x): return "—"
+    # Color code: green in sweet spot, yellow warning, red extremes
+    if 40 <= x <= 60:      cls = "pos"
+    elif 30 <= x < 40 or 60 < x <= 70:  cls = ""
+    else:                  cls = "neg"
+    return f'<span class="{cls}">{x:.0f}</span>'
 
 
 def _ticker_link(t):
     return f'<span class="ticker"><a href="https://finance.yahoo.com/quote/{t}" target="_blank" rel="noopener">{t}</a></span>'
 
 
-def _score_badge(score):
-    """Render Multibagger Score as a colored badge."""
-    if pd.isna(score):
-        return "—"
+def _mb_badge(score):
+    if pd.isna(score): return "—"
     if score >= 9.0:   cls = "mb-elite"
     elif score >= 8.0: cls = "mb-strong"
     elif score >= 7.0: cls = "mb-good"
     elif score >= 6.0: cls = "mb-fair"
     else:              cls = "mb-marginal"
-    # Include a hidden numeric span so DataTables can sort correctly
-    return f'<span class="mb-score {cls}" data-order="{score}">{score:.1f}</span>'
+    return f'<span class="score-badge {cls}" data-order="{score}">{score:.1f}</span>'
+
+
+def _tech_badge(score):
+    if pd.isna(score): return "—"
+    if score >= 8.0:   cls = "tech-great"
+    elif score >= 6.5: cls = "tech-good"
+    elif score >= 5.0: cls = "tech-neutral"
+    elif score >= 3.5: cls = "tech-weak"
+    else:              cls = "tech-bad"
+    return f'<span class="score-badge {cls}" data-order="{score}">{score:.1f}</span>'
+
+
+def _supertrend_badge(signal, days):
+    if pd.isna(signal) or signal is None: return "—"
+    cls = "signal-buy" if signal == "BUY" else "signal-sell"
+    days_str = f'<span class="signal-days">{int(days)}d</span>' if pd.notna(days) else ""
+    return f'<span class="signal {cls}" data-order="{signal}">{signal}</span>{days_str}'
 
 
 # ------------------------------------------------------------------ #
@@ -197,31 +232,34 @@ def generate_html_report(
     output_path: str | Path,
     top_n: int = 50,
 ) -> Path:
-    """Write HTML report to output_path. Returns the path."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     n_pass = len(scored_df)
     top = scored_df.head(top_n).copy()
-
     n_rows = len(top)
     _none = pd.Series([None] * n_rows, index=top.index)
+
+    def _col(name):
+        return top.get(name, _none)
 
     display = pd.DataFrame({
         "Rank":         range(1, n_rows + 1),
         "Ticker":       top["ticker"].apply(_ticker_link),
-        "Name":         top.get("name", pd.Series([""] * n_rows, index=top.index)).fillna(""),
-        "Sector":       top.get("sector", pd.Series([""] * n_rows, index=top.index)).fillna(""),
+        "Name":         _col("name").fillna("").str.slice(0, 32),
+        "Sector":       _col("sector").fillna(""),
         "Mkt Cap":      top["market_cap"].apply(_fmt_cap),
-        "Score /10":    top["multibagger_score"].apply(_score_badge),
-        "Rationale":    top["rationale"].fillna("—"),
-        "ROE":          top.get("roe",              _none).apply(_fmt_pct),
-        "Op Margin":    top.get("operating_margin", _none).apply(_fmt_pct),
-        "Gross Margin": top.get("gross_margin",     _none).apply(_fmt_pct),
-        "Rev Growth":   top.get("revenue_growth",   _none).apply(_fmt_pct),
-        "D/E":          top.get("debt_to_equity",   _none).apply(_fmt_ratio),
-        "P/E":          top.get("pe_ratio",         _none).apply(_fmt_ratio),
-        "PEG":          top.get("peg_ratio",        _none).apply(_fmt_ratio),
+        "MB /10":       top["multibagger_score"].apply(_mb_badge),
+        "Tech /10":     _col("technical_score").apply(_tech_badge),
+        "Supertrend":   [_supertrend_badge(s, d) for s, d in
+                         zip(_col("supertrend_signal"), _col("supertrend_days"))],
+        "RSI":          _col("rsi_14").apply(_fmt_rsi),
+        "vs 200MA":     _col("pct_from_200ma").apply(_fmt_pct_raw),
+        "vs 52wHigh":   _col("pct_from_52w_high").apply(lambda x: f'<span class="neg">-{x:.1f}%</span>' if pd.notna(x) else "—"),
+        "ROE":          _col("roe").apply(_fmt_pct),
+        "Rev Growth":   _col("revenue_growth").apply(_fmt_pct),
+        "PEG":          _col("peg_ratio").apply(_fmt_ratio),
+        "Rationale":    _col("rationale").fillna("—"),
     })
 
     table_html = display.to_html(
