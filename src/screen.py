@@ -17,8 +17,8 @@ import pandas as pd
 # Default filter thresholds — the "multibagger hunting ground" definition.
 # Tune these in main.py or a YAML config later.
 DEFAULT_FILTERS = {
-    # Growth runway — the "small enough to 5-10x" band
-    "market_cap_min": 300_000_000,       # $300M — big enough to be investable
+    # Growth runway — the "small enough to 5-10x, big enough to be consolidated"
+    "market_cap_min": 2_000_000_000,     # $2B — stronger, more established candidates
     "market_cap_max": 10_000_000_000,    # $10B — above this, 10x is very rare
 
     # Quality

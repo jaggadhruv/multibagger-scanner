@@ -1,8 +1,10 @@
 """
 Generate a self-contained HTML report with a sortable, filterable table.
 
-Uses DataTables.js via CDN — no build step, opens in any browser, and Github
-Pages will serve it directly.
+New in this version:
+  * Multibagger Score (0-10) rendered as a colored badge
+  * Rationale column with per-company reasoning
+  * Ranked by Multibagger Score descending
 """
 from __future__ import annotations
 from datetime import datetime, timezone
@@ -35,8 +37,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   body {{
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg); color: var(--text);
-    margin: 0; padding: 24px;
-    max-width: 1600px; margin: 0 auto;
+    margin: 0 auto; padding: 24px; max-width: 1700px;
   }}
   header {{ margin-bottom: 24px; }}
   h1 {{ margin: 0 0 4px; font-size: 24px; }}
@@ -64,14 +65,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     background: #f6f8fa; border-bottom: 2px solid var(--border);
     padding: 10px 8px; font-weight: 600; color: var(--text);
   }}
-  table.dataTable tbody td {{ padding: 8px; border-bottom: 1px solid #eef1f4; }}
+  table.dataTable tbody td {{ padding: 8px; border-bottom: 1px solid #eef1f4; vertical-align: top; }}
   table.dataTable tbody tr:hover {{ background: #f6f8fa; }}
-  .rank {{ font-weight: 600; color: var(--muted); }}
-  .rank-top {{ color: var(--good); }}
+  .rank {{ font-weight: 600; color: var(--muted); text-align: center; }}
   .ticker a {{ color: var(--accent); text-decoration: none; font-weight: 600; }}
   .ticker a:hover {{ text-decoration: underline; }}
+  .rationale {{ font-size: 12px; color: #444; max-width: 380px; line-height: 1.4; }}
   .pos {{ color: var(--good); }}
   .neg {{ color: #cb2431; }}
+
+  /* Multibagger Score badge */
+  .mb-score {{
+    display: inline-block; min-width: 40px; padding: 4px 8px;
+    border-radius: 12px; font-weight: 700; font-size: 13px;
+    text-align: center; color: white;
+  }}
+  .mb-elite {{ background: #22863a; }}   /* 9.0 - 10.0 */
+  .mb-strong {{ background: #2f9e5c; }}  /* 8.0 - 8.9 */
+  .mb-good {{ background: #7cb342; color: #1a3d0a; }}  /* 7.0 - 7.9 */
+  .mb-fair {{ background: #f0c040; color: #4a3800; }}  /* 6.0 - 6.9 */
+  .mb-marginal {{ background: #e0a040; color: #4a2800; }}  /* 5.0 - 5.9 */
+
   footer {{
     margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);
     color: var(--muted); font-size: 12px;
@@ -96,17 +110,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </div>
 
 <div class="criteria">
-<strong>Hard filters</strong>: Market cap $300M–$10B · ROE ≥12% · Op margin ≥8% · Gross margin ≥20% · Revenue growth ≥10% · D/E ≤1.5 · Current ratio ≥1.2 · Positive FCF<br>
-<strong>Composite score</strong>: Quality (30%) + Growth (30%) + Health (15%) + Valuation (15%) + Momentum (10%), computed as robust z-scores within the filtered pool.
+<strong>Hard filters</strong>: Market cap $2B–$10B · ROE ≥12% · Op margin ≥8% · Gross margin ≥20% · Revenue growth ≥10% · D/E ≤1.5 · Current ratio ≥1.2 · Positive FCF<br>
+<strong>Multibagger Score (0-10)</strong>: Weighted composite of Quality (30%) + Health (25%) + Growth (25%) + Valuation (15%) + Momentum (5%). Financial strength (Quality + Health = 55%) dominates. Score is percentile-ranked within the filtered pool: 10 = best passer, 5 = weakest passer.<br>
+<strong>Score bands</strong>:
+<span class="mb-score mb-elite" style="padding:2px 6px;font-size:11px">9.0+</span> Elite ·
+<span class="mb-score mb-strong" style="padding:2px 6px;font-size:11px">8.0-8.9</span> Strong ·
+<span class="mb-score mb-good" style="padding:2px 6px;font-size:11px">7.0-7.9</span> Good ·
+<span class="mb-score mb-fair" style="padding:2px 6px;font-size:11px">6.0-6.9</span> Fair ·
+<span class="mb-score mb-marginal" style="padding:2px 6px;font-size:11px">5.0-5.9</span> Marginal
 </div>
 
 {table}
 
 <footer>
   <div class="disclaimer">
-    <strong>Not investment advice.</strong> This is a factor screener — it produces a candidate list for further research, not a buy list. Multibagger identification is inherently uncertain; even the best factor combinations produce many false positives. Do your own due diligence on business model, management quality, competitive dynamics, and valuation before acting on any name here.
+    <strong>Not investment advice.</strong> This is a factor screener — the Multibagger Score ranks candidates within the filtered pool; it is not a probability of future returns. Multibagger identification is inherently uncertain and even a perfect score is a research starting point, not a buy signal. Do your own due diligence on business model, management quality, competitive dynamics, and valuation before acting on any name here.
   </div>
-  <div>Screener code: <a href="https://github.com/">github.com/&lt;your-repo&gt;</a> · Data source: Yahoo Finance</div>
+  <div>Data source: Yahoo Finance</div>
 </footer>
 
 <script>
@@ -116,7 +136,8 @@ $(document).ready(function() {{
         order: [[0, 'asc']],
         columnDefs: [
             {{ targets: 0, className: 'rank' }},
-            {{ targets: [4, 5, 6, 7, 8, 9, 10, 11, 12], className: 'dt-body-right' }}
+            {{ targets: 5, orderable: true, type: 'num' }},   // Score sorts numerically
+            {{ targets: 6, className: 'rationale' }},
         ]
     }});
 }});
@@ -126,32 +147,48 @@ $(document).ready(function() {{
 """
 
 
+# ------------------------------------------------------------------ #
+# Formatters
+# ------------------------------------------------------------------ #
+
 def _fmt_cap(x):
-    if pd.isna(x):
-        return "—"
-    if x >= 1e9:
-        return f"${x/1e9:.2f}B"
-    if x >= 1e6:
-        return f"${x/1e6:.0f}M"
+    if pd.isna(x): return "—"
+    if x >= 1e9: return f"${x/1e9:.2f}B"
+    if x >= 1e6: return f"${x/1e6:.0f}M"
     return f"${x:.0f}"
 
 
 def _fmt_pct(x):
-    if pd.isna(x):
-        return "—"
+    if pd.isna(x): return "—"
     cls = "pos" if x >= 0 else "neg"
     return f'<span class="{cls}">{x*100:.1f}%</span>'
 
 
 def _fmt_ratio(x):
-    if pd.isna(x):
-        return "—"
+    if pd.isna(x): return "—"
     return f"{x:.2f}"
 
 
 def _ticker_link(t):
     return f'<span class="ticker"><a href="https://finance.yahoo.com/quote/{t}" target="_blank" rel="noopener">{t}</a></span>'
 
+
+def _score_badge(score):
+    """Render Multibagger Score as a colored badge."""
+    if pd.isna(score):
+        return "—"
+    if score >= 9.0:   cls = "mb-elite"
+    elif score >= 8.0: cls = "mb-strong"
+    elif score >= 7.0: cls = "mb-good"
+    elif score >= 6.0: cls = "mb-fair"
+    else:              cls = "mb-marginal"
+    # Include a hidden numeric span so DataTables can sort correctly
+    return f'<span class="mb-score {cls}" data-order="{score}">{score:.1f}</span>'
+
+
+# ------------------------------------------------------------------ #
+# Main entry
+# ------------------------------------------------------------------ #
 
 def generate_html_report(
     scored_df: pd.DataFrame,
@@ -160,27 +197,31 @@ def generate_html_report(
     output_path: str | Path,
     top_n: int = 50,
 ) -> Path:
-    """Write an HTML report to output_path. Returns the path."""
+    """Write HTML report to output_path. Returns the path."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     n_pass = len(scored_df)
     top = scored_df.head(top_n).copy()
 
+    n_rows = len(top)
+    _none = pd.Series([None] * n_rows, index=top.index)
+
     display = pd.DataFrame({
-        "Rank": range(1, len(top) + 1),
-        "Ticker": top["ticker"].apply(_ticker_link),
-        "Name": top.get("name", pd.Series([""] * len(top))).fillna(""),
-        "Sector": top.get("sector", pd.Series([""] * len(top))).fillna(""),
-        "Mkt Cap": top["market_cap"].apply(_fmt_cap),
-        "Score": top["composite_score"].apply(lambda x: f"{x:.2f}"),
-        "ROE": top.get("roe", pd.Series([None] * len(top))).apply(_fmt_pct),
-        "Op Margin": top.get("operating_margin", pd.Series([None] * len(top))).apply(_fmt_pct),
-        "Gross Margin": top.get("gross_margin", pd.Series([None] * len(top))).apply(_fmt_pct),
-        "Rev Growth": top.get("revenue_growth", pd.Series([None] * len(top))).apply(_fmt_pct),
-        "D/E": top.get("debt_to_equity", pd.Series([None] * len(top))).apply(_fmt_ratio),
-        "P/E": top.get("pe_ratio", pd.Series([None] * len(top))).apply(_fmt_ratio),
-        "PEG": top.get("peg_ratio", pd.Series([None] * len(top))).apply(_fmt_ratio),
+        "Rank":         range(1, n_rows + 1),
+        "Ticker":       top["ticker"].apply(_ticker_link),
+        "Name":         top.get("name", pd.Series([""] * n_rows, index=top.index)).fillna(""),
+        "Sector":       top.get("sector", pd.Series([""] * n_rows, index=top.index)).fillna(""),
+        "Mkt Cap":      top["market_cap"].apply(_fmt_cap),
+        "Score /10":    top["multibagger_score"].apply(_score_badge),
+        "Rationale":    top["rationale"].fillna("—"),
+        "ROE":          top.get("roe",              _none).apply(_fmt_pct),
+        "Op Margin":    top.get("operating_margin", _none).apply(_fmt_pct),
+        "Gross Margin": top.get("gross_margin",     _none).apply(_fmt_pct),
+        "Rev Growth":   top.get("revenue_growth",   _none).apply(_fmt_pct),
+        "D/E":          top.get("debt_to_equity",   _none).apply(_fmt_ratio),
+        "P/E":          top.get("pe_ratio",         _none).apply(_fmt_ratio),
+        "PEG":          top.get("peg_ratio",        _none).apply(_fmt_ratio),
     })
 
     table_html = display.to_html(
@@ -198,7 +239,7 @@ def generate_html_report(
         universe=universe_size,
         fetched=fetched_size,
         n_pass=n_pass,
-        n_show=len(top),
+        n_show=n_rows,
         table=table_html,
     )
 

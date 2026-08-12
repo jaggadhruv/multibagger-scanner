@@ -98,11 +98,12 @@ def main():
     print(f"Scored data saved: {scored_path}")
 
     # Show top 10 in console
-    print("\nTop 10 by composite score:")
-    top_cols = ["ticker", "name", "sector", "market_cap", "composite_score",
-                "roe", "revenue_growth", "operating_margin"]
+    print("\nTop 10 by Multibagger Score:")
+    top_cols = ["ticker", "name", "sector", "market_cap", "multibagger_score",
+                "roe", "revenue_growth", "operating_margin", "rationale"]
     top_cols = [c for c in top_cols if c in scored.columns]
-    with pd.option_context("display.max_columns", None, "display.width", 200):
+    with pd.option_context("display.max_columns", None, "display.width", 220,
+                            "display.max_colwidth", 60):
         print(scored[top_cols].head(10).to_string(index=False))
 
     # 5. REPORT

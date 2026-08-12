@@ -104,8 +104,8 @@ multibagger-screener/
 
 ```python
 DEFAULT_FILTERS = {
-    "market_cap_min": 300_000_000,       # $300M
-    "market_cap_max": 20_000_000_000,    # $20B
+    "market_cap_min": 2_000_000_000,     # $2B floor (strong consolidated candidates)
+    "market_cap_max": 10_000_000_000,    # $10B ceiling (still room to 10x)
     "roe_min": 0.12,                     # 12%
     "operating_margin_min": 0.08,
     "gross_margin_min": 0.20,
@@ -120,13 +120,17 @@ DEFAULT_FILTERS = {
 
 ```python
 DEFAULT_WEIGHTS = {
-    "quality":   0.30,
-    "growth":    0.30,
-    "health":    0.15,
+    "quality":   0.30,   # Profitability, capital efficiency
+    "growth":    0.25,   # Revenue and earnings growth
+    "health":    0.25,   # Balance sheet, liquidity, FCF (financial strength)
     "valuation": 0.15,
-    "momentum":  0.10,
+    "momentum":  0.05,
 }
 ```
+
+**Multibagger Score (0-10)** — percentile-ranked within the filtered pool.
+Best passing candidate = 10.0, weakest passing candidate = 5.0.
+The report also generates a per-company rationale explaining the score.
 
 **Sector-neutral scoring** (a common next step): group by sector before
 computing z-scores, so you're comparing tech companies to tech companies rather
