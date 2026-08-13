@@ -1,63 +1,56 @@
-ticker,technical_error,current_price,rsi_14,ma_50,ma_200,pct_from_200ma,pct_from_52w_high,technical_score,supertrend_signal,supertrend_days
-INSW,,92.38,55.0,85.99,69.62,32.7,4.0,6.0,BUY,24
-HL,,18.1,65.4,15.58,18.42,-1.7,43.1,4.5,BUY,6
-SEZL,,125.44,37.8,155.22,93.17,34.6,33.5,7.0,SELL,14
-MGY,,26.36,55.1,26.22,26.13,0.9,18.5,9.5,SELL,13
-INVA,,20.81,42.6,21.97,21.65,-3.9,14.2,8.0,SELL,30
-EXEL,,50.38,36.1,53.86,46.15,9.2,11.8,9.5,SELL,5
-VCTR,,116.23,77.1,92.69,75.27,54.4,0.0,0.5,BUY,25
-HLNE,,103.29,70.6,84.84,108.13,-4.5,35.8,3.0,BUY,21
-HRMY,,39.77,68.0,35.27,33.39,19.1,1.8,6.0,BUY,7
-LGND,,293.27,49.5,283.02,223.02,31.5,9.1,7.5,SELL,10
-CARG,,36.88,56.1,33.14,33.87,8.9,5.5,9.0,BUY,36
-KRYS,,332.86,47.4,340.79,277.39,20.0,12.0,10.0,SELL,22
-PARR,,77.78,56.4,65.94,52.83,47.2,9.6,6.0,SELL,6
-CNS,,84.82,62.2,78.7,69.07,22.8,0.0,4.5,BUY,81
-SEIC,,105.54,73.8,94.64,86.08,22.6,0.0,2.0,BUY,26
-ESNT,,68.28,61.0,63.28,62.01,10.1,0.6,6.0,BUY,40
-CRUS,,121.89,29.8,148.49,140.85,-13.5,31.9,4.5,SELL,41
-RELY,,24.23,54.3,22.31,17.7,36.9,6.6,7.5,BUY,5
-LQDA,,78.79,43.6,77.44,47.51,65.8,13.4,7.0,BUY,108
-RMBS,,101.01,48.6,117.22,109.13,-7.4,40.8,6.0,SELL,44
-COCO,,66.45,46.0,72.61,58.87,12.9,20.9,10.0,SELL,30
-FHI,,63.0,61.1,58.76,54.95,14.6,3.0,6.0,BUY,21
-DAVE,,316.19,37.4,349.6,247.62,27.7,28.5,7.0,SELL,11
-RDN,,36.44,41.8,36.69,35.18,3.6,8.2,8.5,SELL,5
-FIVE,,238.15,71.3,200.86,200.52,18.8,3.9,3.5,BUY,20
-ADEA,,28.11,50.6,29.17,22.8,23.3,16.4,8.5,BUY,7
-ANIP,,75.12,38.0,80.69,80.89,-7.1,24.0,7.5,SELL,16
-AGX,,572.1,44.1,648.65,494.58,15.7,28.4,9.0,SELL,24
-VICR,,226.12,47.6,269.68,192.74,17.3,40.5,8.0,SELL,29
-PRG,,41.23,40.6,42.16,34.17,20.6,13.3,8.5,SELL,3
-LIVN,,80.78,52.8,79.29,67.1,20.4,5.3,7.5,SELL,5
-QLYS,,187.15,74.8,139.73,120.84,54.9,0.6,0.5,BUY,7
-FCFS,,213.97,52.9,215.49,190.54,12.3,8.2,9.0,SELL,19
-MOG-A,,428.82,60.0,400.52,309.87,38.4,0.0,4.5,BUY,1
-KLIC,,95.15,47.1,106.96,74.69,27.4,28.9,7.5,SELL,26
-APPF,,196.77,60.2,171.44,191.29,2.9,31.3,7.0,BUY,26
-JOE,,67.9,67.2,63.66,63.78,6.5,6.7,7.5,BUY,8
-CART,,48.45,58.1,45.29,41.29,17.3,4.2,7.5,BUY,4
-DAR,,63.43,59.4,58.71,50.33,26.0,2.2,6.0,SELL,11
-CR,,222.93,56.5,211.57,193.29,15.3,1.6,7.5,SELL,10
-ACAD,,29.45,73.2,24.62,23.89,23.3,0.0,2.0,BUY,34
-WDFC,,232.5,48.2,232.97,216.89,7.2,12.2,10.0,SELL,22
-TGTX,,49.5,43.2,51.56,37.25,32.9,16.2,8.5,SELL,8
-DUOL,,134.63,53.6,126.53,139.05,-3.2,63.5,6.0,SELL,5
-AEIS,,337.32,57.1,320.52,292.06,15.5,13.3,10.0,BUY,7
-FSS,,126.31,54.9,119.32,114.84,10.0,5.6,9.0,BUY,8
-AWI,,183.46,65.1,162.38,175.6,4.5,9.9,7.0,BUY,13
-CRVL,,62.75,54.6,61.19,62.07,1.1,32.3,8.5,SELL,14
-SPXC,,218.18,51.4,223.57,214.75,1.6,11.5,9.5,SELL,23
-EXPO,,67.64,61.4,61.22,67.11,0.8,15.2,8.0,BUY,48
-EXLS,,34.33,64.0,29.28,33.91,1.2,23.7,8.0,BUY,20
-GOLF,,89.1,26.0,103.22,93.35,-4.6,24.8,6.5,SELL,14
-UFPT,,322.46,68.7,253.62,229.21,40.7,3.7,3.0,BUY,8
-BCPC,,179.76,68.8,166.38,164.84,9.1,1.9,6.0,BUY,8
-RSI,,24.28,30.2,29.63,22.85,6.3,29.7,8.5,SELL,12
-BOOT,,160.74,51.3,162.29,173.71,-7.5,22.7,8.0,BUY,7
-AGYS,,107.35,53.2,100.04,95.96,11.9,23.9,10.0,BUY,11
-OLLI,,78.25,61.2,73.29,97.28,-19.6,43.4,3.5,BUY,10
-BDC,,138.03,75.9,113.69,119.22,15.8,8.5,5.0,BUY,9
-URBN,,77.47,56.7,73.43,70.71,9.6,6.3,9.0,BUY,17
-ATEN,,27.49,33.8,33.03,23.88,15.1,27.9,8.5,SELL,13
-BROS,,51.02,28.8,63.89,57.72,-11.6,31.3,4.5,SELL,22
+ticker,technical_error
+INSW,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+SEZL,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+HL,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+MGY,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+INVA,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+EXEL,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+HLNE,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+LGND,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+KRYS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+PARR,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+HRMY,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+CARG,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+ESNT,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+CNS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+SEIC,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+CRUS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+RELY,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+LQDA,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+RMBS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+FHI,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+COCO,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+DAVE,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+RDN,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+FIVE,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+ADEA,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+ANIP,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+LIVN,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+PRG,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+AGX,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+QLYS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+FCFS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+DAR,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+CART,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+MOG-A,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+KLIC,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+JOE,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+CR,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+APPF,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+ACAD,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+DUOL,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+FSS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+AEIS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+AWI,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+CRVL,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+EXPO,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+EXLS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+BCPC,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+RSI,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+GOLF,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+BOOT,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+OLLI,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+AGYS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+BDC,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+ATEN,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
+BROS,YFRateLimitError: Too Many Requests. Rate limited. Try after a while.
