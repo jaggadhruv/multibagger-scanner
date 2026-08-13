@@ -123,7 +123,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <strong>Hard filters</strong>: Market cap $1B–$15B · ROE ≥12% · Op margin ≥8% · Gross margin ≥20% · Revenue growth ≥10% · D/E ≤1.5 · Current ratio ≥1.2 · Positive FCF<br>
 <strong>Multibagger Score (0-10, fundamental)</strong>: Quality (30%) + Health (25%) + Growth (25%) + Valuation (15%) + Momentum (5%). Financial strength (Quality + Health = 55%) dominates.<br>
 <strong>Technical Score (0-10, entry-timing)</strong>: RSI in 40-60 sweet spot (+2), 5-20% above 200-day MA (+1.5), 10-25% pullback from 52w high (+1.5). Overextended prices are penalised.<br>
-<strong>Supertrend (period=10, mult=3.0)</strong>: <span class="signal signal-buy">BUY</span> = price above trend line; <span class="signal signal-sell">SELL</span> = price below. Days count shows how long the current signal has held.
+<strong>Supertrend (ATR period=10, mult=2.5)</strong>: <span class="signal signal-buy">BUY</span> = price above trend line; <span class="signal signal-sell">SELL</span> = price below. Shown on TWO timeframes:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;• <strong>ST Weekly</strong> — long-term trend from weekly bars (primary signal for multibagger holds). Suffix = weeks in trend.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;• <strong>ST Daily</strong> — short-term signal from daily bars (entry-timing color). Suffix = days in trend.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;• Weekly BUY + Daily BUY = strongest setup · Weekly BUY + Daily SELL = pullback in uptrend (possible entry) · Weekly SELL = avoid.
 </div>
 
 {table}
@@ -214,11 +217,12 @@ def _tech_badge(score):
     return f'<span class="score-badge {cls}" data-order="{score}">{score:.1f}</span>'
 
 
-def _supertrend_badge(signal, days):
+def _supertrend_badge(signal, bars, unit="d"):
+    """Render Supertrend BUY/SELL badge with bars-in-trend suffix (d=days, w=weeks)."""
     if pd.isna(signal) or signal is None: return "—"
     cls = "signal-buy" if signal == "BUY" else "signal-sell"
-    days_str = f'<span class="signal-days">{int(days)}d</span>' if pd.notna(days) else ""
-    return f'<span class="signal {cls}" data-order="{signal}">{signal}</span>{days_str}'
+    bars_str = f'<span class="signal-days">{int(bars)}{unit}</span>' if pd.notna(bars) else ""
+    return f'<span class="signal {cls}" data-order="{signal}">{signal}</span>{bars_str}'
 
 
 # ------------------------------------------------------------------ #
@@ -251,8 +255,10 @@ def generate_html_report(
         "Mkt Cap":      top["market_cap"].apply(_fmt_cap),
         "MB /10":       top["multibagger_score"].apply(_mb_badge),
         "Tech /10":     _col("technical_score").apply(_tech_badge),
-        "Supertrend":   [_supertrend_badge(s, d) for s, d in
-                         zip(_col("supertrend_signal"), _col("supertrend_days"))],
+        "ST Weekly":    [_supertrend_badge(s, w, "w") for s, w in
+                         zip(_col("supertrend_weekly_signal"), _col("supertrend_weekly_weeks"))],
+        "ST Daily":     [_supertrend_badge(s, d, "d") for s, d in
+                         zip(_col("supertrend_daily_signal"), _col("supertrend_daily_days"))],
         "RSI":          _col("rsi_14").apply(_fmt_rsi),
         "vs 200MA":     _col("pct_from_200ma").apply(_fmt_pct_raw),
         "vs 52wHigh":   _col("pct_from_52w_high").apply(lambda x: f'<span class="neg">-{x:.1f}%</span>' if pd.notna(x) else "—"),

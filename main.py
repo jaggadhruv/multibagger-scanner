@@ -121,11 +121,13 @@ def main():
     # Show top 10 in console
     print("\nTop 10 (Fundamental + Technical):")
     top_cols = ["ticker", "name", "sector", "market_cap",
-                "multibagger_score", "technical_score", "supertrend_signal",
-                "rsi_14", "pct_from_200ma", "pct_from_52w_high", "rationale"]
+                "multibagger_score", "technical_score",
+                "supertrend_weekly_signal", "supertrend_weekly_weeks",
+                "supertrend_daily_signal", "supertrend_daily_days",
+                "rsi_14", "pct_from_200ma", "rationale"]
     top_cols = [c for c in top_cols if c in scored.columns]
-    with pd.option_context("display.max_columns", None, "display.width", 260,
-                            "display.max_colwidth", 55):
+    with pd.option_context("display.max_columns", None, "display.width", 280,
+                            "display.max_colwidth", 50):
         print(scored[top_cols].head(10).to_string(index=False))
 
     # 6. REPORT
