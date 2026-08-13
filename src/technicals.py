@@ -41,7 +41,8 @@ ATR_PERIOD = 10
 ATR_MULTIPLIER = 2.5
 LOOKBACK_PERIOD = "3y"     # 3y daily → ~750 daily bars, ~156 weekly bars after resample
 INTERVAL = "1d"
-FETCH_DELAY = 0.3          # seconds between yfinance calls — polite pacing
+FETCH_DELAY = 0.5          # seconds between yfinance calls — polite pacing (bumped from 0.3)
+RATE_LIMIT_WAIT = 15       # seconds to wait when a specific ticker hits rate limit
 MIN_BARS_REQUIRED = 60     # need enough bars for MA/RSI to stabilize
 MIN_WEEKLY_BARS = 15       # need ~15 weekly bars for Supertrend ATR(10) to settle
 
@@ -100,25 +101,39 @@ def compute_technical_score(
 # Fetch (sequential — this is the key to reliability)
 # ------------------------------------------------------------------ #
 
-def _fetch_history(ticker: str) -> tuple[pd.DataFrame | None, str]:
+def _fetch_history(ticker: str, retries: int = 1) -> tuple[pd.DataFrame | None, str]:
     """
     Fetch 1y of daily OHLC via yfinance. Sequential caller ensures we
     don't get rate-limited. Mirrors engine.py's fetch_data().
+
+    On a rate-limit exception (yfinance's YFRateLimitError or a string match),
+    waits RATE_LIMIT_WAIT seconds and retries once. This handles the case
+    where a stale rate limit from earlier in the run flares back up.
     """
-    try:
-        data = yf.Ticker(ticker).history(
-            period=LOOKBACK_PERIOD,
-            interval=INTERVAL,
-            auto_adjust=False,
-        )
-        if data is None or data.empty:
-            return None, "no data returned"
-        data = data.dropna(subset=["High", "Low", "Close"])
-        if len(data) < MIN_BARS_REQUIRED:
-            return None, f"only {len(data)} bars (need {MIN_BARS_REQUIRED}+)"
-        return data, ""
-    except Exception as e:
-        return None, f"{type(e).__name__}: {str(e)[:100]}"
+    for attempt in range(retries + 1):
+        try:
+            data = yf.Ticker(ticker).history(
+                period=LOOKBACK_PERIOD,
+                interval=INTERVAL,
+                auto_adjust=False,
+            )
+            if data is None or data.empty:
+                return None, "no data returned"
+            data = data.dropna(subset=["High", "Low", "Close"])
+            if len(data) < MIN_BARS_REQUIRED:
+                return None, f"only {len(data)} bars (need {MIN_BARS_REQUIRED}+)"
+            return data, ""
+        except Exception as e:
+            err_str = f"{type(e).__name__}: {str(e)[:100]}"
+            is_rate_limit = ("rate limit" in str(e).lower()
+                             or "too many requests" in str(e).lower()
+                             or "429" in str(e))
+            if is_rate_limit and attempt < retries:
+                print(f"    [{ticker}] rate limit hit, waiting {RATE_LIMIT_WAIT}s and retrying...")
+                time.sleep(RATE_LIMIT_WAIT)
+                continue
+            return None, err_str
+    return None, "rate limit persisted after retries"
 
 
 def _supertrend_state(hist: pd.DataFrame) -> tuple[str | None, int | None]:

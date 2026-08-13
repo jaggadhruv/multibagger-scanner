@@ -92,7 +92,7 @@ def _fetch_one(ticker: str, retries: int = 2) -> dict[str, Any]:
 
 def fetch_fundamentals(
     tickers: list[str],
-    max_workers: int = 8,
+    max_workers: int = 4,
     progress_every: int = 50,
 ) -> pd.DataFrame:
     """
