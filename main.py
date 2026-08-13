@@ -22,6 +22,9 @@ from src.score import compute_scores
 from src.technicals import fetch_technicals
 from src.report import generate_html_report
 
+# TEMP DEBUG - remove after
+  import subprocess
+  subprocess.run(["python", "debug_sources.py", "AAPL"])
 
 def main():
     p = argparse.ArgumentParser(description="US multibagger stock screener")
