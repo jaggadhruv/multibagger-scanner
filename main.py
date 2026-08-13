@@ -110,6 +110,14 @@ def main():
     scored = scored.merge(technicals, on="ticker", how="left", suffixes=("", "_tech"))
     scored.to_csv(output_dir / "final.csv", index=False)
 
+    # Sanity check — warn if technicals didn't populate
+    if "technical_score" not in scored.columns or scored["technical_score"].isna().all():
+        print("\n" + "!" * 60)
+        print("WARNING: technical_score column is empty or missing.")
+        print("Check output/technicals.csv → 'technical_error' column for the cause.")
+        print("Report will still generate, but Tech Score / Supertrend will show '—'.")
+        print("!" * 60)
+
     # Show top 10 in console
     print("\nTop 10 (Fundamental + Technical):")
     top_cols = ["ticker", "name", "sector", "market_cap",
