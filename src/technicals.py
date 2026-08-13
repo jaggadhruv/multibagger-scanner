@@ -1,11 +1,12 @@
 """
-Technical analysis for filtered candidates.
+Technical analysis with dual-source resilience.
 
-Data source: stooq.com (free, no rate limits, no API key)
-  Why not yfinance for prices? On GitHub Actions and other cloud IPs,
-  Yahoo's backend aggressively rate-limits (HTTP 429). Stooq is a free
-  Polish financial data provider that serves EOD OHLC as CSV and does
-  not rate-limit. Perfect for our daily/weekly screener workflow.
+Sources tried in order:
+  1. stooq.com — fast, no rate limits when it works
+  2. yfinance   — slower, sometimes rate-limited on cloud IPs, used as fallback
+
+Both are free, no API key needed. If BOTH fail for a ticker, the actual
+error content is included in `technical_error` so you can see exactly why.
 
 Computes:
   * RSI (14-day, Wilder smoothing)
@@ -26,11 +27,25 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import requests
+import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
 STOOQ_URL = "https://stooq.com/q/d/l/"
-UA = "Mozilla/5.0 (multibagger-screener; educational use)"
+
+# Full browser User-Agent — critical for stooq/yahoo which block generic UAs
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/121.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/csv,text/plain,text/html,application/xhtml+xml,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer": "https://stooq.com/",
+    "Connection": "keep-alive",
+}
 
 
 # ------------------------------------------------------------------ #
@@ -49,11 +64,8 @@ def rsi(close: pd.Series, period: int = 14) -> pd.Series:
 
 
 def supertrend(
-    high: pd.Series,
-    low: pd.Series,
-    close: pd.Series,
-    period: int = 10,
-    multiplier: float = 3.0,
+    high: pd.Series, low: pd.Series, close: pd.Series,
+    period: int = 10, multiplier: float = 3.0,
 ) -> tuple[pd.Series, pd.Series]:
     """Supertrend. Returns (line, trend) where trend is +1 (BUY) or -1 (SELL)."""
     hl = high - low
@@ -83,30 +95,23 @@ def supertrend(
 
         if prev_trend == 1:
             if curr_close < prev_st:
-                st[i] = upper_v[i]
-                trend[i] = -1
+                st[i], trend[i] = upper_v[i], -1
             else:
-                st[i] = max(lower_v[i], prev_st)
-                trend[i] = 1
+                st[i], trend[i] = max(lower_v[i], prev_st), 1
         else:
             if curr_close > prev_st:
-                st[i] = lower_v[i]
-                trend[i] = 1
+                st[i], trend[i] = lower_v[i], 1
             else:
-                st[i] = min(upper_v[i], prev_st)
-                trend[i] = -1
+                st[i], trend[i] = min(upper_v[i], prev_st), -1
 
     return pd.Series(st, index=close.index), pd.Series(trend, index=close.index)
 
 
 def compute_technical_score(
-    rsi_val: float | None,
-    price: float,
-    ma_200: float | None,
-    high_52w: float,
-    low_52w: float,
+    rsi_val: float | None, price: float, ma_200: float | None,
+    high_52w: float, low_52w: float,
 ) -> float:
-    """Composite technical opportunity score 0-10 (higher = better entry)."""
+    """0-10 technical opportunity score (higher = better entry)."""
     score = 5.0
 
     if rsi_val is not None and not pd.isna(rsi_val):
@@ -138,23 +143,22 @@ def compute_technical_score(
 
 
 # ------------------------------------------------------------------ #
-# Stooq fetcher
+# Source 1: stooq.com
 # ------------------------------------------------------------------ #
 
 def _stooq_symbol_variants(ticker: str) -> list[str]:
     """Return possible stooq symbol formats to try for a US ticker."""
     t = ticker.lower()
     variants = [f"{t}.us"]
-    # Class shares: yfinance uses BRK-B, stooq sometimes uses brk-b, sometimes brk.b
     if "-" in t:
         variants.append(f"{t.replace('-', '.')}.us")
     return variants
 
 
-def _fetch_stooq(ticker: str, days: int = 400, retries: int = 2) -> pd.DataFrame | None:
+def fetch_from_stooq(ticker: str, days: int = 400) -> tuple[pd.DataFrame | None, str]:
     """
-    Fetch daily OHLC history from stooq.com.
-    Free, no rate limits, no auth. Returns None on any failure.
+    Try to fetch OHLC history from stooq.com.
+    Returns (dataframe_or_None, error_message).
     """
     end_date = datetime.now()
     start_date = end_date - timedelta(days=days)
@@ -164,49 +168,98 @@ def _fetch_stooq(ticker: str, days: int = 400, retries: int = 2) -> pd.DataFrame
         "i": "d",
     }
 
+    last_error = "unknown"
     for symbol in _stooq_symbol_variants(ticker):
-        for attempt in range(retries + 1):
-            try:
-                r = requests.get(
-                    STOOQ_URL,
-                    params={"s": symbol, **params_date},
-                    headers={"User-Agent": UA},
-                    timeout=15,
-                )
-                if r.status_code != 200:
-                    if attempt < retries:
-                        time.sleep(0.5 * (attempt + 1))
-                        continue
-                    break
+        try:
+            r = requests.get(
+                STOOQ_URL,
+                params={"s": symbol, **params_date},
+                headers=BROWSER_HEADERS,
+                timeout=20,
+            )
+        except Exception as e:
+            last_error = f"request exception: {type(e).__name__}: {str(e)[:80]}"
+            continue
 
-                text = r.text.strip()
-                # Stooq returns literal "No data" for unknown symbols
-                if not text or text.lower().startswith("no data") or "\n" not in text:
-                    break  # try next variant
+        if r.status_code != 200:
+            last_error = f"HTTP {r.status_code}"
+            continue
 
-                df = pd.read_csv(StringIO(text))
-                if df.empty or "Close" not in df.columns:
-                    break
+        text = r.text.strip()
 
-                df["Date"] = pd.to_datetime(df["Date"])
-                df = df.set_index("Date").sort_index()
-                # Drop rows with missing Close (should be rare from stooq)
-                df = df.dropna(subset=["Close"])
-                return df if len(df) >= 60 else None
-            except Exception:
-                if attempt < retries:
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
-                break
-    return None
+        # HTML response = block page or error
+        if text.startswith("<") or "<html" in text[:200].lower():
+            snippet = text[:100].replace("\n", " ")
+            last_error = f"HTML response (blocked?): {snippet}"
+            continue
+
+        # Empty
+        if not text or "\n" not in text:
+            last_error = f"empty/single-line response: {text[:80]!r}"
+            continue
+
+        # Stooq "no data" for unknown symbol - try next variant
+        if text.lower().startswith("no data"):
+            last_error = "no data (unknown symbol)"
+            continue
+
+        # Expect CSV header
+        if not text.startswith("Date"):
+            last_error = f"unexpected format: {text[:80]!r}"
+            continue
+
+        try:
+            df = pd.read_csv(StringIO(text))
+            if df.empty or "Close" not in df.columns:
+                last_error = "CSV parsed but no Close column"
+                continue
+            df["Date"] = pd.to_datetime(df["Date"])
+            df = df.set_index("Date").sort_index().dropna(subset=["Close"])
+            if len(df) < 60:
+                last_error = f"only {len(df)} rows (need 60+)"
+                continue
+            return df, ""
+        except Exception as e:
+            last_error = f"CSV parse error: {type(e).__name__}: {str(e)[:80]}"
+            continue
+
+    return None, last_error
 
 
 # ------------------------------------------------------------------ #
-# Per-ticker indicator computation
+# Source 2: yfinance (fallback, slower)
 # ------------------------------------------------------------------ #
 
-def _compute_indicators(ticker: str, hist: pd.DataFrame) -> dict[str, Any]:
-    """Given a per-ticker OHLC DataFrame, compute all indicators."""
+def fetch_from_yfinance(ticker: str, retries: int = 2) -> tuple[pd.DataFrame | None, str]:
+    """
+    Fallback: fetch via yfinance. Rate-limited on cloud IPs but sometimes works.
+    Returns (dataframe_or_None, error_message).
+    """
+    last_error = "unknown"
+    for attempt in range(retries + 1):
+        try:
+            hist = yf.Ticker(ticker).history(period="1y", auto_adjust=True)
+            if hist is not None and not hist.empty and "Close" in hist.columns:
+                hist = hist.dropna(subset=["Close"])
+                if len(hist) >= 60:
+                    return hist, ""
+                last_error = f"yfinance: only {len(hist)} rows"
+            else:
+                last_error = "yfinance: empty response"
+        except Exception as e:
+            last_error = f"yfinance: {type(e).__name__}: {str(e)[:80]}"
+
+        if attempt < retries:
+            time.sleep(1.5 * (attempt + 1))
+
+    return None, last_error
+
+
+# ------------------------------------------------------------------ #
+# Indicator computation
+# ------------------------------------------------------------------ #
+
+def _compute_indicators(ticker: str, hist: pd.DataFrame, source: str) -> dict[str, Any]:
     close = hist["Close"]
     high = hist["High"]
     low = hist["Low"]
@@ -228,9 +281,8 @@ def _compute_indicators(ticker: str, hist: pd.DataFrame) -> dict[str, Any]:
     pct_from_200ma = ((current_price - ma_200_v) / ma_200_v * 100) if ma_200_v else None
     pct_from_52w_high = ((high_52w - current_price) / high_52w * 100) if high_52w > 0 else None
 
-    st_line, st_trend = supertrend(high, low, close)
+    _, st_trend = supertrend(high, low, close)
     current_signal = "BUY" if st_trend.iloc[-1] == 1 else "SELL"
-
     flips = (st_trend != st_trend.shift()).cumsum()
     days_in_trend = int((flips == flips.iloc[-1]).sum())
 
@@ -239,6 +291,7 @@ def _compute_indicators(ticker: str, hist: pd.DataFrame) -> dict[str, Any]:
     return {
         "ticker": ticker,
         "technical_error": None,
+        "technical_source": source,
         "current_price": round(current_price, 2),
         "rsi_14": round(rsi_val, 1) if rsi_val is not None else None,
         "ma_50": round(ma_50_v, 2) if ma_50_v else None,
@@ -255,39 +308,53 @@ def _compute_indicators(ticker: str, hist: pd.DataFrame) -> dict[str, Any]:
 # Public API
 # ------------------------------------------------------------------ #
 
-def _worker(ticker: str) -> dict[str, Any]:
-    """Small jitter, fetch, compute — one ticker."""
-    time.sleep(random.uniform(0, 0.15))  # spread out calls
-    hist = _fetch_stooq(ticker)
-    if hist is None:
-        return {"ticker": ticker, "technical_error": "no history from stooq"}
-    try:
-        return _compute_indicators(ticker, hist)
-    except Exception as e:
-        return {"ticker": ticker, "technical_error": f"{type(e).__name__}: {e}"}
+def _worker(ticker: str, use_yf_fallback: bool = True) -> dict[str, Any]:
+    """Try stooq first, then yfinance if enabled."""
+    time.sleep(random.uniform(0, 0.15))
+
+    hist, stooq_err = fetch_from_stooq(ticker)
+    if hist is not None:
+        try:
+            return _compute_indicators(ticker, hist, source="stooq")
+        except Exception as e:
+            stooq_err = f"compute error: {type(e).__name__}: {e}"
+
+    if not use_yf_fallback:
+        return {"ticker": ticker, "technical_error": f"stooq: {stooq_err}"}
+
+    # Fallback with polite delay to avoid rate limit
+    time.sleep(random.uniform(1.0, 2.5))
+    hist, yf_err = fetch_from_yfinance(ticker)
+    if hist is not None:
+        try:
+            return _compute_indicators(ticker, hist, source="yfinance")
+        except Exception as e:
+            yf_err = f"compute error: {type(e).__name__}: {e}"
+
+    return {"ticker": ticker, "technical_error": f"stooq: {stooq_err} | {yf_err}"}
 
 
 def fetch_technicals(
     tickers: list[str],
-    max_workers: int = 10,
-    **_kwargs,   # accept extra kwargs from old callers
+    max_workers: int = 8,
+    use_yf_fallback: bool = True,
+    **_kwargs,
 ) -> pd.DataFrame:
     """
-    Fetch technicals for a list of tickers via stooq.com.
+    Fetch technicals for a list of tickers.
 
-    Stooq doesn't rate-limit, so we can use modest parallelism (10 workers).
-    Intended to be called with FILTERED candidates only (30-100 tickers),
-    though it scales fine to hundreds.
+    Tries stooq.com first, falls back to yfinance if enabled. Set
+    `use_yf_fallback=False` to skip the fallback (faster but less resilient).
     """
     n = len(tickers)
-    print(f"Fetching price history from stooq.com for {n} candidates "
-          f"(max_workers={max_workers})...")
+    print(f"Fetching technicals for {n} candidates "
+          f"(source: stooq → yfinance fallback: {use_yf_fallback}, workers: {max_workers})")
 
     results: list[dict[str, Any]] = []
     t0 = time.time()
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = {ex.submit(_worker, t): t for t in tickers}
+        futures = {ex.submit(_worker, t, use_yf_fallback): t for t in tickers}
         for i, fut in enumerate(as_completed(futures), start=1):
             results.append(fut.result())
             if i % 20 == 0 or i == n:
@@ -298,11 +365,17 @@ def fetch_technicals(
     n_ok = df["technical_error"].isna().sum() if "technical_error" in df.columns else 0
     print(f"\nTechnicals success: {n_ok}/{n} ({n_ok/n*100:.0f}%)")
 
-    # Sample errors if a lot failed
+    # Source breakdown
+    if "technical_source" in df.columns:
+        by_source = df[df["technical_source"].notna()]["technical_source"].value_counts()
+        for src, cnt in by_source.items():
+            print(f"  via {src}: {cnt}")
+
+    # If a lot failed, dump sample errors so you can see WHAT is failing
     if n_ok < n * 0.8 and "technical_error" in df.columns:
         errs = df[df["technical_error"].notna()]["technical_error"]
-        print("Top error types:")
-        for err, count in errs.value_counts().head(3).items():
-            print(f"  ({count}x) {err[:140]}")
+        print("\nSample errors (top 5 unique):")
+        for err in errs.drop_duplicates().head(5).tolist():
+            print(f"  {err[:200]}")
 
     return df
