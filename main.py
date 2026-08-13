@@ -22,9 +22,6 @@ from src.score import compute_scores
 from src.technicals import fetch_technicals
 from src.report import generate_html_report
 
-# TEMP DEBUG - remove after
-  import subprocess
-  subprocess.run(["python", "debug_sources.py", "AAPL"])
 
 def main():
     p = argparse.ArgumentParser(description="US multibagger stock screener")
@@ -103,7 +100,7 @@ def main():
 
     # 5. TECHNICALS (only for filtered candidates - not the whole universe)
     print("\n" + "=" * 60)
-    print("STEP 5: Technical analysis (price history + Supertrend)")
+    print("STEP 5: Technical analysis (sequential yfinance, ~0.3s/ticker)")
     print("=" * 60)
     technicals = fetch_technicals(scored["ticker"].tolist(), max_workers=args.workers)
     tech_path = output_dir / "technicals.csv"
