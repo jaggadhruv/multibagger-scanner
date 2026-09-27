@@ -1,3 +1,5 @@
+Website: https://jaggadhruv.github.io/multibagger-scanner/
+
 # US Multibagger Screener
 
 A factor-based screener that ranks US stocks (S&P 1500) by their fit to a
