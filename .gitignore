@@ -1,26 +1,15 @@
-# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
 .venv/
+venv/
 .env
-*.egg-info/
 .pytest_cache/
-
-# Output (regenerated each run)
-output/*.csv
-output/raw_data.csv
-
-# Keep the report HTML tracked if you want to publish it via GitHub Pages,
-# otherwise uncomment the next line
-# output/report.html
-
-# IDE
+.DS_Store
 .vscode/
 .idea/
-*.swp
-.DS_Store
+
+# Regenerated on every run and published to GitHub Pages by the workflow
+output/*
+!output/.gitkeep
+
+# data/ IS tracked on purpose: it holds the statement cache and the picks log

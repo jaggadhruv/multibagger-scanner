@@ -1,1 +1,1 @@
-"""Multibagger screener source modules."""
+"""Screener modules."""

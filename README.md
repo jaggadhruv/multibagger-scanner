@@ -1,232 +1,143 @@
-Website: https://jaggadhruv.github.io/multibagger-scanner/
+# US Multibagger Shortlist
 
-# US Multibagger Screener
+A weekly screen of US mid and small caps that returns a short list, not a ranking.
+A stock is shown only if it clears a fixed 12-point checklist: a business that has
+already proven itself, is still inflecting, and whose chart is confirming it.
 
-A factor-based screener that ranks US stocks (S&P 1500) by their fit to a
-multibagger profile: small-to-mid cap, high quality, growing, financially
-healthy, reasonably valued.
+Free data only (Yahoo Finance through `yfinance`, Wikipedia for the index lists).
+No API keys, no secrets.
 
-**Free**. No paid APIs. No signup. Runs locally and on GitHub Actions.
+## What changed from the old version
 
----
+| Old | New |
+|---|---|
+| Scored stocks against each other, so someone always got 10/10 and 50 names were shown | Every check is a fixed yes or no. Zero stocks in a week is a valid result |
+| One-year snapshot ratios | 4 years of annual statements: growth, return on capital, cash flow, margins |
+| Banks, REITs, oil, miners mixed in | Excluded up front, the checklist does not fit them |
+| Chart data shown but ignored in ranking | Chart is a gate. No uptrend, no tier A |
+| Rewarded pullbacks, penalised strength | Requires strength, either established or just starting |
+| No record of results | Every pick is logged and measured against the S&P 500 |
 
-## What this actually does
+## The checklist
 
-1. Pulls ~1,000 tickers from the S&P 400 (MidCap) + S&P 600 (SmallCap) — the multibagger hunting ground. Add `--include-large` to include S&P 500 (rarely useful).
-2. Fetches fundamentals for each via `yfinance` (free).
-3. Applies hard filters (market cap $1B–$15B, ROE ≥12%, positive FCF, etc.) — narrows to ~30–100 candidates.
-4. **Fundamental scoring** — composite Multibagger Score (0-10) weighted toward financial strength.
-5. **Technical analysis** (only for candidates that passed filters — keeps it fast):
-   - RSI (14-day, Wilder smoothing)
-   - Distance from 50-day and 200-day moving averages
-   - Position within 52-week range
-   - **Technical Score (0-10)** — "how good is this entry point?"
-   - **Supertrend indicator** — BUY / SELL signal with days-in-trend
-6. Writes a self-contained interactive HTML report ranked by Multibagger Score.
+**Gate 1, proven business** (all seven required)
 
-**This is a candidate generator, not a buy list.** Fundamental score, technical score, and Supertrend signal are three independent lenses — the more they agree, the higher-conviction the setup, but all three can be wrong.
+1. Revenue growth of 15%+ a year over 3 years
+2. Revenue up in each of the last 3 years
+3. Return on invested capital of 15%+, 3-year average
+4. Free cash flow positive in at least 3 of the last 4 years
+5. Free cash flow at least 60% of net profit over 3 years
+6. Financial debt no more than 3x operating profit
+7. Share count growing no more than 4% a year
 
----
+**Gate 2, early / inflecting** (both required)
 
-## Quick start (local)
+8. Operating margin higher than 3 years ago, and not rolling over
+9. Growth holding up: latest year and latest quarter not fading
 
-You'll need Python 3.10+.
+**Gate 3, chart strength** (all three required, two routes)
+
+10. Weekly Supertrend on BUY
+11. Price above the 200-day average
+12. Beating the S&P 500
+
+A weekly BUY that is 12 weeks old or less is treated as **emerging**: it needs the
+price above the 200-day average and a 3-month lead over the index. An older BUY is
+**established** and must meet a stricter test: a rising 200-day average, within 15%
+of the 52-week high, ahead of the index over both 6 and 12 months.
+
+Size band: market cap between $1B and $15B.
+
+## What the report shows
+
+| Tier | Meaning |
+|---|---|
+| **A, Actionable now** | Passes all 12 checks |
+| **B, Watchlist** | Business passes gates 1 and 2, chart not ready. Shows exactly what the chart lacks |
+| **C, Bench** (collapsed) | Proven business that is not inflecting right now |
+
+Below the tiers: a funnel showing how many stocks pass each check, and a track
+record of every earlier tier A pick against the index.
+
+A check with missing data counts as **not met**. If a whole check has no data for
+most companies, the report says so in a warning box at the top.
+
+## Running it
 
 ```bash
-# 1. Clone your repo (once you push it)
-git clone https://github.com/<your-username>/multibagger-screener.git
-cd multibagger-screener
-
-# 2. Set up a virtual environment
-python -m venv .venv
-source .venv/bin/activate      # macOS/Linux
-# .venv\Scripts\activate       # Windows
-
-# 3. Install dependencies
 pip install -r requirements.txt
-
-# 4. Smoke test with a small sample (~30 tickers, 1 minute)
-python main.py --sample
-
-# 5. Open the report
-open output/index.html          # macOS
-# start output/index.html       # Windows
-# xdg-open output/index.html    # Linux
+python -m tests.test_offline     # 17 offline tests, about 5 seconds, no network
+python main.py --sample          # 12 tickers, checks the live data path
+python main.py                   # full run
 ```
 
-If that works, do a real run:
+| Flag | Use |
+|---|---|
+| `--sample` | 12 tickers |
+| `--limit N` | first N in-scope tickers |
+| `--skip-fetch` | use cached statements only, fetch nothing but prices |
+| `--refresh-all` | ignore the cache and refetch every company |
+| `--max-fetch-minutes N` | time budget for statement fetching (default 40) |
 
-```bash
-# Full S&P 1500 run — 15 to 30 minutes depending on network / rate limiting
-python main.py
+## The first run takes longer
 
-# Or scale up gradually
-python main.py --limit 200
-python main.py --limit 500
+Annual statements are fetched one company at a time (about 650 companies, 3 calls
+each, roughly 25 to 30 minutes) and stored in `data/fundamentals_cache.json`. After that,
+each weekly run refreshes only the quarter of the cache that has gone stale.
+
+If Yahoo starts refusing requests, or the time budget runs out, the run stops
+fetching, keeps what it has, publishes a report marked as incomplete, and the next
+run continues where this one stopped. Run the workflow again to finish the fill.
+
+## GitHub Actions
+
+`.github/workflows/screener.yml` runs every Saturday 06:00 UTC and on demand.
+It commits `data/` back to the repository (cache and picks log) and publishes
+`output/` to GitHub Pages. It needs **Settings > Actions > General > Workflow
+permissions > Read and write**, which the previous version already required.
+
+## Tuning
+
+Every threshold is in `config.py`. The funnel in the report shows which check
+removes the most stocks. Change one number, run with `--skip-fetch`, and the new
+result is ready in under a minute because the statements are already cached.
+
+To screen beyond the S&P 400 and 600, save any list of tickers as
+`input/universe.csv` (first column tickers; optional `name`, `sector`, `industry`
+columns). It replaces the index lists.
+
+## Files
+
+```
+main.py                 entry point
+config.py               every threshold
+src/universe.py         index lists, sector exclusions
+src/fundamentals.py     Yahoo statements, cache, market-specific checks 6 and 7
+src/checklist.py        the 12 checks, gates and tiers
+src/chart.py            prices, 200-day average, relative strength, Supertrend
+src/supertrend.py       the Supertrend indicator
+src/tracklog.py         picks log and performance against the index
+src/pipeline.py         ties the steps together, writes CSVs
+src/report.py           HTML report
+tests/                  offline tests with a fake Yahoo
+data/                   fundamentals_cache.json, picks_log.csv (tracked in git)
+output/                 index.html, all_companies.csv, shortlist.csv (regenerated)
 ```
 
----
+Files from the old version that are no longer used and can be deleted:
+`src/fetch.py`, `src/screen.py`, `src/score.py`, `src/technicals.py`.
 
-## CLI flags
+## Limits
 
-| Flag | What it does |
-|------|--------------|
-| `--sample` | ~30 hand-picked tickers, useful for smoke tests |
-| `--limit N` | First N tickers of the universe (for iteration) |
-| `--include-large` | Add S&P 500 to the universe (default: mid+small only). Only useful for benchmarking; large caps rarely become multibaggers. |
-| `--permissive` | Include rows with missing data (larger candidate pool, noisier) |
-| `--top N` | Number of stocks to show in the HTML report (default 50) |
-| `--workers N` | Concurrent yfinance fetches (default 8; higher = faster but more likely to be rate-limited) |
-| `--output-dir DIR` | Where CSVs and HTML go (default `output/`) |
+- **Not validated.** No backtest stands behind these thresholds. The track record
+  in the report is the evidence, and it needs months and dozens of picks to mean anything.
+- **Annual data lags.** Statements are up to a year old by the time the next report
+  arrives. Check 9 uses the latest quarter to catch a stall, when Yahoo provides it.
+- **Yahoo data has errors.** Confirm the numbers in the company's 10-K before acting.
+- **The universe is the S&P 400 and 600.** Younger companies outside those indices
+  are not screened unless you supply your own list.
+- **The picks log holds the screener's picks only.** It never contains your own
+  trades or positions.
+- Management quality, governance and fraud risk are not measured.
 
----
-
-## Project layout
-
-```
-multibagger-screener/
-├── main.py                     # Entry point
-├── requirements.txt
-├── README.md
-├── .gitignore
-├── src/
-│   ├── universe.py             # Get tickers from Wikipedia
-│   ├── fetch.py                # yfinance fundamentals
-│   ├── screen.py               # Hard filters
-│   ├── score.py                # Fundamental scoring + rationale
-│   ├── technicals.py           # RSI, MA, Supertrend, Technical Score
-│   └── report.py               # HTML report generation
-├── .github/workflows/
-│   └── screener.yml            # Weekly automated run + Pages deploy
-└── output/                     # Generated (gitignored except index.html)
-    ├── raw_data.csv
-    ├── filtered.csv
-    ├── scored.csv
-    └── index.html
-```
-
----
-
-## Tuning the screener
-
-**Loosening or tightening filters** — edit `DEFAULT_FILTERS` in `src/screen.py`:
-
-```python
-DEFAULT_FILTERS = {
-    "market_cap_min": 2_000_000_000,     # $2B floor (strong consolidated candidates)
-    "market_cap_max": 10_000_000_000,    # $10B ceiling (still room to 10x)
-    "roe_min": 0.12,                     # 12%
-    "operating_margin_min": 0.08,
-    "gross_margin_min": 0.20,
-    "revenue_growth_min": 0.10,
-    "debt_to_equity_max": 1.5,
-    "current_ratio_min": 1.2,
-    "positive_fcf_required": True,
-}
-```
-
-**Changing factor weights** — edit `DEFAULT_WEIGHTS` in `src/score.py`:
-
-```python
-DEFAULT_WEIGHTS = {
-    "quality":   0.30,   # Profitability, capital efficiency
-    "growth":    0.25,   # Revenue and earnings growth
-    "health":    0.25,   # Balance sheet, liquidity, FCF (financial strength)
-    "valuation": 0.15,
-    "momentum":  0.05,
-}
-```
-
-**Multibagger Score (0-10)** — percentile-ranked within the filtered pool.
-Best passing candidate = 10.0, weakest passing candidate = 5.0.
-The report also generates a per-company rationale explaining the score.
-
-**Sector-neutral scoring** (a common next step): group by sector before
-computing z-scores, so you're comparing tech companies to tech companies rather
-than to utilities. Left as an exercise — it's a ~10-line change in `score.py`.
-
----
-
-## Pushing to GitHub
-
-```bash
-git init
-git add .
-git commit -m "Initial multibagger screener"
-git branch -M main
-git remote add origin https://github.com/<your-username>/multibagger-screener.git
-git push -u origin main
-```
-
----
-
-## Automating with GitHub Actions
-
-The workflow at `.github/workflows/screener.yml` will:
-
-- Run **every Saturday at 06:00 UTC** (after Friday US close).
-- Run **on-demand** from the Actions tab (with optional `limit` / `permissive` inputs).
-- Upload the whole `output/` folder as an artifact (downloadable for 30 days).
-- Publish the HTML report to **GitHub Pages** at `https://<your-username>.github.io/multibagger-screener/report.html`.
-
-### One-time setup for GitHub Pages
-
-1. Push the repo. Let the first Action run finish (or trigger it manually via **Actions → Weekly Multibagger Screener → Run workflow**).
-2. This creates a `gh-pages` branch.
-3. Go to **Settings → Pages**. Under "Build and deployment", set:
-   - Source: **Deploy from a branch**
-   - Branch: **gh-pages** / root
-4. Save. Within a minute your report will be live at `https://<your-username>.github.io/multibagger-screener/`.
-
-### Cost
-
-Public repos on GitHub Actions: **unlimited free minutes**. This job runs in
-~15–30 min once a week, so cost is $0.
-
----
-
-## Known limitations / honest caveats
-
-- **yfinance is unofficial.** Yahoo occasionally changes their internal
-  endpoints and yfinance breaks until it's updated. If you see mass NaN,
-  `pip install --upgrade yfinance` usually fixes it.
-- **Rate limiting.** With 8 concurrent workers you should be fine. Bumping to
-  20+ workers gets you rate-limited and rows fail. Retries help but don't
-  eliminate this.
-- **Data quality varies.** Small caps in particular have missing values for
-  things like PEG ratio or gross margin. Strict mode excludes them; permissive
-  mode keeps them with penalty.
-- **Sector neutrality.** Current scoring is cross-sectional across all sectors,
-  so highly profitable sectors (software, semis) will dominate. If you want
-  sector-neutral ranks, group by sector before z-scoring.
-- **Survivorship bias.** Wikipedia constituent lists reflect *current* index
-  members. Companies that were dropped (often after decline) aren't in your
-  universe. This matters more for backtesting than for forward screening.
-- **No qualitative overlay.** Business model, management quality, moat depth,
-  fraud risk — none of these are in the screener. That's your job before you
-  act on any name.
-- **US markets only for now.** India requires a separate data pipeline (see
-  next steps).
-
----
-
-## Suggested next steps
-
-1. **Sector-neutral scoring** — see comment in `score.py`.
-2. **5-year growth CAGRs** — pull from `stock.financials` rather than just
-   trailing YoY. More stable signal.
-3. **Insider transactions** — `stock.insider_transactions` gives you buys/sells.
-4. **News flagging** — auditor changes, guidance cuts, management departures.
-5. **Backtesting harness** — replay the screen at monthly snapshots on
-   historical constituent lists, track forward 3/5-year returns.
-6. **India module** — a parallel pipeline using nsepython / screener.in for
-   Indian stocks, with promoter pledge as an additional filter.
-
----
-
-## Disclaimer
-
-This tool is for **educational and research purposes only**. Nothing here is
-investment advice. The author (you, once you fork it) makes no warranties about
-data accuracy or fitness for any purpose. You are solely responsible for your
-investment decisions.
+For research only. Not investment advice.

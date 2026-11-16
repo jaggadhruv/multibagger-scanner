@@ -1,186 +1,108 @@
 """
-US Multibagger Screener — main entry point.
+US Multibagger Shortlist: main entry point.
 
-Usage:
-    python main.py                 # Full run: ~1500 tickers, 15-30 min
-    python main.py --sample        # Quick smoke test (~30 tickers)
-    python main.py --limit 200     # First 200 tickers of the universe
-    python main.py --permissive    # Include rows with missing data
-    python main.py --top 100       # Show top 100 in report (default 50)
+    python main.py                  full run
+    python main.py --sample         12 tickers, quick check that everything works
+    python main.py --limit 100      first 100 in-scope tickers
+    python main.py --skip-fetch     no statement fetching, use the cache as it is
+    python main.py --refresh-all    refetch every company's statements
+
+Steps
+    1. Universe (S&P 400 + 600, or input/universe.csv) and sector exclusions
+    2. Annual statements from Yahoo, through a cache in data/ (see src/fundamentals.py)
+    3. Business checklist: gate 1 (proven) and gate 2 (inflecting)
+    4. Prices for the gate-1 passers only, then gate 3 (chart)
+    5. Tiers, track record, output/index.html and CSV files
 """
 from __future__ import annotations
 import argparse
 import sys
-import time
-from pathlib import Path
 
-import pandas as pd
-
-from src.universe import get_universe, get_sample_tickers
-from src.fetch import fetch_fundamentals
-from src.screen import apply_filters
-from src.score import compute_scores
-from src.technicals import fetch_technicals
-from src.report import generate_html_report
+import config as cfg
+from src import fundamentals as fund
+from src.checklist import classify, fundamental_items, num
+from src.pipeline import finish_run
+from src.universe import SAMPLE, exclusion_reason, get_universe
 
 
-def _cooldown(seconds: int, label: str = "cooldown"):
-    """Sleep with a visible countdown so long waits don't look like a hang."""
-    if seconds <= 0:
-        return
-    print(f"\n{label}: waiting {seconds}s to let Yahoo rate limit clear...")
-    remaining = seconds
-    while remaining > 0:
-        step = min(10, remaining)
-        time.sleep(step)
-        remaining -= step
-        if remaining > 0:
-            print(f"  {remaining}s remaining...")
-    print("  done — resuming.")
+def passes_gate1(rec: dict) -> bool:
+    if rec.get("status") != "ok":
+        return False
+    items, _ = fundamental_items(rec, cfg)
+    return classify(items)["gate1"]
 
 
-def main():
-    p = argparse.ArgumentParser(description="US multibagger stock screener")
-    p.add_argument("--sample", action="store_true",
-                   help="Use a hardcoded ~30-ticker sample (for quick tests)")
-    p.add_argument("--limit", type=int, default=None,
-                   help="Limit universe to first N tickers (for iteration)")
-    p.add_argument("--include-large", action="store_true",
-                   help="Add S&P 500 to the universe (default: mid+small only, "
-                        "since large caps rarely become multibaggers)")
-    p.add_argument("--permissive", action="store_true",
-                   help="Include rows with missing data in filtering (non-strict)")
-    p.add_argument("--top", type=int, default=50,
-                   help="Show top N in HTML report (default 50)")
-    p.add_argument("--output-dir", default="output",
-                   help="Directory for CSV + HTML outputs")
-    p.add_argument("--workers", type=int, default=4,
-                   help="Concurrent yfinance fetches for fundamentals (default 4). "
-                        "Lower = less likely to be rate-limited, but slower.")
-    p.add_argument("--wait-before-technicals", type=int, default=60,
-                   help="Seconds to wait between fundamentals and technicals fetch "
-                        "(default 60). Gives Yahoo's rate limiter time to reset.")
-    p.add_argument("--skip-fundamentals", action="store_true",
-                   help="Skip fundamentals fetch — load from cached scored.csv. "
-                        "Useful if fundamentals succeeded but technicals failed on a prior run.")
-    p.add_argument("--skip-technicals", action="store_true",
-                   help="Skip technicals fetch — generate report from fundamentals only.")
+def main() -> None:
+    p = argparse.ArgumentParser(description="US multibagger shortlist")
+    p.add_argument("--sample", action="store_true", help="12 tickers, for a quick check")
+    p.add_argument("--limit", type=int, default=None, help="only the first N in-scope tickers")
+    p.add_argument("--skip-fetch", action="store_true", help="do not fetch statements, use the cache as is")
+    p.add_argument("--refresh-all", action="store_true", help="refetch statements for every company")
+    p.add_argument("--max-fetch-minutes", type=float, default=None, help="time budget for statement fetching")
     args = p.parse_args()
+    health = {"warnings": [], "notes": []}
 
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
-
-    if args.skip_fundamentals:
-        # -------- Load cached fundamentals from previous run --------
-        cached = output_dir / "scored.csv"
-        if not cached.exists():
-            print(f"ERROR: --skip-fundamentals requires {cached} to exist. Run once without --skip-fundamentals first.")
-            sys.exit(1)
-        print("=" * 60)
-        print("STEP 1-4: SKIPPED (loading cached scored.csv)")
-        print("=" * 60)
-        scored = pd.read_csv(cached)
-        print(f"Loaded {len(scored)} cached candidates from {cached}")
-        tickers_len = int(scored["market_cap"].notna().sum()) if "market_cap" in scored.columns else len(scored)
-        fetched_len = tickers_len
-        universe_size = tickers_len  # unknown, use best available
+    print("=" * 64 + "\nUniverse\n" + "=" * 64)
+    if args.sample:
+        universe, described = list(SAMPLE), "sample of 12 tickers"
     else:
-        # -------- Full fundamentals pipeline --------
-        print("=" * 60)
-        print("STEP 1: Building ticker universe")
-        print("=" * 60)
-        if args.sample:
-            tickers = get_sample_tickers()
-            print(f"Using sample universe: {len(tickers)} tickers")
+        universe, described = get_universe()
+    if not universe:
+        print("ERROR: no tickers. Wikipedia could not be read; try again or add input/universe.csv")
+        sys.exit(1)
+    cfg.UNIVERSE_NAME = described
+    if not args.sample and described.startswith("S&P") and len(universe) < 800:
+        health["warnings"].append(f"Only {len(universe)} tickers were read from Wikipedia (about 1,000 expected). "
+                                  "One of the two index pages probably failed to load.")
+
+    in_scope, excluded = [], 0
+    for meta in universe:
+        if exclusion_reason(meta.get("sector"), meta.get("industry"), cfg):
+            excluded += 1
         else:
-            tickers = get_universe(include_large_cap=args.include_large)
-            label = "S&P 1500 (large+mid+small)" if args.include_large else "S&P 400+600 (mid+small)"
-            print(f"{label} universe: {len(tickers)} tickers")
-        if args.limit:
-            tickers = tickers[: args.limit]
-            print(f"Limited to first {len(tickers)}")
+            in_scope.append(meta)
+    if args.limit:
+        in_scope = in_scope[: args.limit]
+    print(f"{len(universe)} tickers, {excluded} outside scope (financials, real estate, energy, commodities), "
+          f"{len(in_scope)} to screen")
+    tickers = [m["ticker"] for m in in_scope]
+    meta_by = {m["ticker"]: m for m in in_scope}
 
-        if not tickers:
-            print("ERROR: No tickers to process. Check network / Wikipedia access.")
-            sys.exit(1)
-
-        universe_size = len(tickers)
-
-        print("\n" + "=" * 60)
-        print(f"STEP 2: Fetching fundamentals ({args.workers} parallel workers)")
-        print("=" * 60)
-        raw = fetch_fundamentals(tickers, max_workers=args.workers)
-        raw_path = output_dir / "raw_data.csv"
-        raw.to_csv(raw_path, index=False)
-        print(f"Raw data saved: {raw_path}")
-
-        fetched = raw[raw["error"].isna()].copy()
-        fetched_len = len(fetched)
-        print(f"Rows with data: {fetched_len}/{len(raw)}")
-
-        print("\n" + "=" * 60)
-        print("STEP 3: Applying filters")
-        print("=" * 60)
-        filtered = apply_filters(fetched, strict=not args.permissive)
-        if len(filtered) == 0:
-            print("\nNo candidates passed filters. Try --permissive or loosen thresholds in src/screen.py.")
-            sys.exit(0)
-        filtered.to_csv(output_dir / "filtered.csv", index=False)
-
-        print("\n" + "=" * 60)
-        print("STEP 4: Fundamental scoring")
-        print("=" * 60)
-        scored = compute_scores(filtered)
-        scored.to_csv(output_dir / "scored.csv", index=False)
-        print(f"Scored data saved: {output_dir/'scored.csv'} ({len(scored)} candidates)")
-
-    # -------- Technicals with cooldown --------
-    if not args.skip_technicals:
-        _cooldown(args.wait_before_technicals,
-                  label="Cooldown before technicals fetch")
-
-        print("\n" + "=" * 60)
-        print("STEP 5: Technical analysis (sequential yfinance, ~0.5s/ticker)")
-        print("=" * 60)
-        technicals = fetch_technicals(scored["ticker"].tolist())
-        technicals.to_csv(output_dir / "technicals.csv", index=False)
-
-        scored = scored.merge(technicals, on="ticker", how="left", suffixes=("", "_tech"))
-        scored.to_csv(output_dir / "final.csv", index=False)
-
-        if "technical_score" not in scored.columns or scored["technical_score"].isna().all():
-            print("\n" + "!" * 60)
-            print("WARNING: technical_score column is empty or missing.")
-            print("Check output/technicals.csv → 'technical_error' column for the cause.")
-            print("Tip: try re-running with --skip-fundamentals to retry just the technicals step.")
-            print("!" * 60)
+    print("\n" + "=" * 64 + "\nAnnual statements\n" + "=" * 64)
+    cache = fund.load_cache()
+    # Stocks that already pass gate 1 on cached numbers get refreshed first and more often
+    shortlist = {t for t in tickers if passes_gate1(fund.build_record(meta_by[t], cache.get(t), cfg))}
+    if args.skip_fetch:
+        print("Skipping the fetch, using cached statements only.")
     else:
-        print("\nSTEP 5: SKIPPED (--skip-technicals). Report will show fundamentals only.")
+        stats = fund.refresh_cache(tickers, cache, cfg, shortlist, args.max_fetch_minutes, args.refresh_all)
+        if stats.get("left"):
+            health["notes"].append(f"Statement fetching stopped early ({stats['stopped']}); {stats['left']} companies "
+                                   "are still to be fetched and will be picked up by the next run.")
 
-    # Show top 10 in console
-    print("\nTop 10 (Fundamental + Technical):")
-    top_cols = ["ticker", "name", "sector", "market_cap",
-                "multibagger_score", "technical_score",
-                "supertrend_weekly_signal", "supertrend_weekly_weeks",
-                "supertrend_daily_signal", "supertrend_daily_days",
-                "rsi_14", "pct_from_200ma", "rationale"]
-    top_cols = [c for c in top_cols if c in scored.columns]
-    with pd.option_context("display.max_columns", None, "display.width", 280,
-                            "display.max_colwidth", 50):
-        print(scored[top_cols].head(10).to_string(index=False))
+    records = {t: fund.build_record(meta_by[t], cache.get(t), cfg) for t in tickers}
+    gate1_now = [t for t in tickers if passes_gate1(records[t])]
+    if not args.skip_fetch:
+        fund.refresh_quarters(gate1_now, cache, cfg)
+        for t in gate1_now:
+            records[t] = fund.build_record(meta_by[t], cache.get(t), cfg)
 
-    # -------- REPORT --------
-    print("\n" + "=" * 60)
-    print("STEP 6: Generating HTML report")
-    print("=" * 60)
-    report_path = generate_html_report(
-        scored_df=scored,
-        universe_size=universe_size,
-        fetched_size=fetched_len,
-        output_path=output_dir / "index.html",
-        top_n=args.top,
-    )
-    print(f"\nDone. Open in browser:\n  file://{report_path.resolve()}")
+    def enrich(row: dict) -> None:
+        """Name, sector, market cap and P/E for the few names that reach this point."""
+        info = {} if args.skip_fetch else fund.enrich_from_info(row["ticker"], cfg.FETCH_DELAY)
+        for key in ("name", "sector", "industry"):
+            if not row.get(key) and info.get(key):
+                row[key] = info[key]
+        close, shares = num(row["chart"].get("close")), num(row.get("shares_latest"))
+        row["market_cap"] = num(info.get("market_cap")) or (close * shares if close and shares else None)
+        earnings = num(row.get("net_income_latest"))
+        row["pe"] = num(info.get("pe")) or (row["market_cap"] / earnings if row["market_cap"] and earnings and earnings > 0 else None)
+        reason = exclusion_reason(row.get("sector"), row.get("industry"), cfg)
+        if reason:
+            row["dropped"] = f"out of scope ({reason})"
+
+    finish_run(cfg, list(records.values()), {"universe": len(universe), "in_scope": len(in_scope)}, health, enrich)
+    print("\nDone. Open output/index.html")
 
 
 if __name__ == "__main__":

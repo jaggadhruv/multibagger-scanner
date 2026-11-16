@@ -1,30 +1,32 @@
-name: Weekly Multibagger Screener
+name: Weekly Multibagger Shortlist (US)
 
 on:
   schedule:
-    # Every Saturday at 06:00 UTC (after Friday US close)
+    # Saturdays 06:00 UTC, after Friday's US close
     - cron: '0 6 * * 6'
-  workflow_dispatch:  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
     inputs:
       limit:
-        description: 'Limit universe size (leave blank for full run)'
+        description: 'Only the first N in-scope tickers (blank = all)'
         required: false
         default: ''
-      permissive:
-        description: 'Permissive mode (include missing data)'
+      refresh_all:
+        description: 'Refetch every statement, ignoring the cache'
         required: false
         type: boolean
         default: false
 
 permissions:
-  contents: write   # needed to push to gh-pages branch
-  pages: write
-  id-token: write
+  contents: write
+
+concurrency:
+  group: screener
+  cancel-in-progress: false
 
 jobs:
   screen:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 80
 
     steps:
       - name: Checkout
@@ -41,28 +43,48 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Offline self-test
+        continue-on-error: true
+        run: python -m tests.test_offline
+
       - name: Run screener
+        env:
+          LIMIT: ${{ github.event.inputs.limit }}
+          REFRESH_ALL: ${{ github.event.inputs.refresh_all }}
         run: |
           ARGS=""
-          if [ -n "${{ github.event.inputs.limit }}" ]; then
-            ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
-          fi
-          if [ "${{ github.event.inputs.permissive }}" = "true" ]; then
-            ARGS="$ARGS --permissive"
-          fi
+          if [ -n "$LIMIT" ]; then ARGS="$ARGS --limit $LIMIT"; fi
+          if [ "$REFRESH_ALL" = "true" ]; then ARGS="$ARGS --refresh-all"; fi
           python main.py $ARGS
+
+      # The statement cache and the picks log live in data/ and must survive between runs
+      - name: Save data back to the repository
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No data changes to save."
+          else
+            git commit -m "Update screener data (run ${{ github.run_number }})"
+            git pull --rebase --autostash || true
+            git push || echo "Push failed; the next run will save the data."
+          fi
 
       - name: Upload output as artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: screener-output-${{ github.run_number }}
           path: output/
           retention-days: 30
 
       - name: Deploy report to GitHub Pages
+        if: success()
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./output
           keep_files: false
-          commit_message: 'Update screener report ${{ github.run_number }}'
+          commit_message: 'Update US shortlist ${{ github.run_number }}'
